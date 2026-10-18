@@ -7,6 +7,7 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
+#include <Pi/PiFirmwareFile.h>
 #include <Pi/PiFirmwareVolume.h>
 #include <Protocol/FirmwareVolumeBlock.h>
 #include <Protocol/FirmwareVolume2.h>
