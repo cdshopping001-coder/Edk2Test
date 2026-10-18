@@ -314,7 +314,7 @@ P1 可再做 `DpXHost`：匯入多 Session、Timeline/Flame-like View、報表 H
 
 - [EDK II Dp 原始碼（stable202608）](https://github.com/tianocore/edk2/tree/edk2-stable202608/ShellPkg/DynamicCommand/DpDynamicCommand)
 - [EDK II PerformanceLib API](https://github.com/tianocore/edk2/blob/edk2-stable202608/MdePkg/Include/Library/PerformanceLib.h)
-- [ACPI 6.6 `5.2.24 Firmware Performance Data Table](https://uefi.org/specs/ACPI/6.6/05_ACPI_Software_Programming_Model.html#firmware-performance-data-table-fpdt)
+- [ACPI 6.6 §5.2.24 Firmware Performance Data Table](https://uefi.org/specs/ACPI/6.6/05_ACPI_Software_Programming_Model.html#firmware-performance-data-table-fpdt)
 - [Edk2Test Issue #3](https://github.com/cdshopping001-coder/Edk2Test/issues/3)
 - [EDK2 OVMF Build #10（Windows + Linux passed）](https://github.com/cdshopping001-coder/Edk2Test/actions/runs/39148178616)
 
