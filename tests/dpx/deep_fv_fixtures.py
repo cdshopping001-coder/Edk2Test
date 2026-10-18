@@ -54,7 +54,7 @@ def make_nested_efi_compressed_fv(root: Path) -> tuple[bytes, int]:
         enc = Path(t) / "compressed.bin"
         inp.write_bytes(plain)
         subprocess.run([
-            str(find_efi_compressor(root)), "--uefi", "-e",
+            str(find_efi_compressor(root)), "-e", "--uefi",
             "-o", str(enc), str(inp),
         ], check=True, capture_output=True)
         compressed = enc.read_bytes()
