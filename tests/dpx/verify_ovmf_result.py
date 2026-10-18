@@ -30,6 +30,10 @@ required = (
     "[3/4] Local firmware volume information",
     "[4/4] Local SPI/FVB access capabilities",
     "Live read-only FVB space accounting:",
+    "NestedFV FFSCount=2 PAD=0",
+    "Decompress=UEFI_STANDARD decodedBytes=4100; parent physical usage UNCHANGED",
+    "Section depth=0 Type=0x17",
+    "Accounting=CHILD_ONLY_DO_NOT_ADD_TO_PARENT",
     "DpX DUT survey complete:",
     "No external firmware image was requested or loaded.",
 )
