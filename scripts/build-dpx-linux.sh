@@ -7,7 +7,7 @@ case "$CONFIG" in DEBUG|RELEASE) ;; *) echo "Usage: $0 [DEBUG|RELEASE]" >&2; exi
 for tool in git gcc make nasm python3; do
   command -v "$tool" >/dev/null || { echo "Missing $tool" >&2; exit 1; }
 done
-git -C "$ROOT" submodule update --init --recursive edk2
+git -C "$ROOT" submodule update --init edk2
 if [[ ! -f "$ROOT/.venv/bin/activate" ]]; then python3 -m venv "$ROOT/.venv"; fi
 source "$ROOT/.venv/bin/activate"
 python -m pip install --disable-pip-version-check -r "$ROOT/scripts/pip-requirements-ovmf.txt"
