@@ -7,7 +7,7 @@
   BASE_NAME                      = DpX
   FILE_GUID                      = a2f70c4c-0ce3-4e89-85a0-103e2cf46c8b
   MODULE_TYPE                    = UEFI_APPLICATION
-  VERSION_STRING                 = 0.1.0
+  VERSION_STRING                 = 0.2.0
   ENTRY_POINT                    = DpXEntryPoint
 
 [Sources]
@@ -16,6 +16,7 @@
   SysInfo.c
   Fv.c
   RomInfo.c
+  RawFv.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -33,6 +34,7 @@
 
 [Protocols]
   gEfiShellParametersProtocolGuid               ## CONSUMES
+  gEfiShellProtocolGuid                         ## CONSUMES
   gEfiFirmwareVolume2ProtocolGuid               ## CONSUMES
   gEfiFirmwareVolumeBlockProtocolGuid           ## SOMETIMES_CONSUMES
   gEfiSpiNorFlashProtocolGuid                   ## SOMETIMES_CONSUMES

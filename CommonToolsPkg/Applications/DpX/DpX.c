@@ -20,10 +20,11 @@ DpXPrintHelp (
   Print (L"  DpX.efi -sysinfo        UEFI/CPU/SecureBoot information\n");
   Print (L"  DpX.efi -fv-list        Enumerate firmware-visible FV2 volumes\n");
   Print (L"  DpX.efi -fv-files -fv N List logical FFS files in FV index N\n");
-  Print (L"  DpX.efi -fv-space       Size report; raw Used/Free N/A at this stage\n");
+  Print (L"  DpX.efi -fv-space       Live FV2 physical sizes remain N/A\n");
+  Print (L"  DpX.efi -rom-analyze -input fs0:\\test.fv -fv-space\n");
   Print (L"  DpX.efi -rom-info       Probe FV2/FVB/SPI-NOR/HCI protocol handles\n");
-  Print (L"\nThis is the initial M1 vertical slice, not the finished v1.3 plan.\n");
-  Print (L"FPDT parser, RAW ROM import/dump, N-boot and FV sizing: NOT IMPLEMENTED.\n");
+  Print (L"\nM2 partial: standalone raw FV at file offset 0 only; complete IFWI scan unsupported.\n");
+  Print (L"FPDT, SPI flash dump, N-boot, nested FV parsing: NOT IMPLEMENTED.\n");
   Print (L"No firmware writes, erases, lock changes or automatic resets are performed.\n");
 }
 
@@ -126,6 +127,18 @@ DpXEntryPoint (
     }
 
     return DpXListFirmwareVolumes (TRUE, FALSE, TRUE, Index);
+  }
+
+  if (StrCmp (Command, L"-rom-analyze") == 0) {
+    if (((Parameters->Argc != 4) && (Parameters->Argc != 5)) ||
+        (StrCmp (Parameters->Argv[2], L"-input") != 0) ||
+        ((Parameters->Argc == 5) &&
+         (StrCmp (Parameters->Argv[4], L"-fv-space") != 0)))
+    {
+      Print (L"Usage: DpX.efi -rom-analyze -input fsX:\\file.fv [-fv-space]\n");
+      return EFI_INVALID_PARAMETER;
+    }
+    return DpXAnalyzeRawFirmwareFile (Parameters->Argv[3]);
   }
 
   if (StrCmp (Command, L"-rom-info") == 0) {
