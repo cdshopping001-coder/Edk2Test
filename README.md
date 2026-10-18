@@ -94,7 +94,7 @@ Install Visual Studio 2022 with **Desktop development with C++**, Windows SDK, P
 choco install nasm iasl -y
 ```
 
-Open **x64 Native Tools Command Prompt for VS 2022**. From the repository root:
+Open **x86 Native Tools Command Prompt for VS 2022** (EDK2 BaseTools default builds the IA32 host utilities). The firmware target remains X64. From the repository root:
 
 ```cmd
 scripts\build-windows.cmd DEBUG
