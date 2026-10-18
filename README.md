@@ -147,7 +147,7 @@ EDK II uses its upstream licenses; the submodule does not change upstream attrib
 The pinned `edk2-stable202608` requirements include `pylibfdt==1.7.2.post1`, which has had a known SWIG compatibility issue on some environments. OVMF X64 does not require `pylibfdt`. For this baseline only, the build wrappers therefore install `scripts/pip-requirements-ovmf.txt`, which preserves the other upstream pins but excludes `pylibfdt`. Projects requiring FIT/DTB support should install and validate an appropriate `pylibfdt` independently.
 
 
-## DpX.efi — UEFI Shell Firmware Analyzer (v0.3.0, in development)
+## DpX.efi — UEFI Shell Firmware Analyzer (v0.8.0, in development)
 
 DpX is a standalone, unsigned X64 UEFI Shell application in `CommonToolsPkg/Applications/DpX`. The pinned upstream EDK2 submodule is not modified.
 
@@ -157,7 +157,7 @@ Implemented commands include `-version`, `-help`, `-sysinfo`, `-fv-list`, `-fv-f
 
 **Validation:** GCC X64 and VS2022 X64 compile; actual QEMU/OVMF Shell integration tests execute DpX.efi and verify synthetic FVs (4096 bytes total, 136 used, 3960 free) and multi-FV ROM offsets 0x1000/0x3000. This is not Dell Citadel or Intel RVP hardware validation.
 
-**Not implemented yet:** DP/FPDT performance parser and Boot Time analytics, real SPI/BIOS full dump, multi-boot benchmarking, arbitrary Intel IFWI container decoding, decompression and complete nested FV inspection. Values that cannot be safely determined remain N/A.
+**Current live capability:** `DpX.efi` without input files (or `-summary`) runs current-system inventory, local firmware ACPI FPDT/FBPT with memory-map validation, FV2 enumeration and SPI/FVB interface discovery. `-perf-live` directly inspects the platform; `-perf-live -pointers` shows pointers only. **Not implemented yet:** full DP Start/End module/event pairing, live FV physical Used/Free where raw inaccessible, SPI/IFWI dump, multi-boot benchmarking, proprietary IFWI decode and full nested FV inspection. Unavailable values remain N/A.
 
 See [DpX Plan v1.3](docs/DpX_Development_Plan_v1.3.md), [Multi-FV scope](docs/DpX_M2_MultiFV.md), and [real Shell CI gate](docs/DpX_OVMF_Shell_Test.md).
 
