@@ -5,7 +5,7 @@ import sys
 data = Path(sys.argv[1]).read_bytes()
 output = data.decode("utf-16le", errors="replace") if b"\0" in data else data.decode("utf-8", errors="replace")
 required = (
-    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.7.0",
+    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.8.0",
     "Total=4096", "Used=136", "Free=3960",
     "status=verified_contiguous_layout",
     "reason=INVALID_FV_HEADER_OR_BLOCKMAP", "Used=N/A",
@@ -24,11 +24,18 @@ required = (
     "FPDT status=invalid reason=ACPI_CHECKSUM_INVALID",
     "Live FPDT discovery source=firmware-published ACPI XSDT/RSDT",
     "Live FPDT status=",
+    "LIVE DUT survey | no ROM/FPDT input needed",
+    "[1/4] Current system information",
+    "[2/4] Local ACPI FPDT and Basic Boot performance",
+    "[3/4] Local firmware volume information",
+    "[4/4] Local SPI/FVB access capabilities",
+    "DpX DUT survey complete:",
+    "No external firmware image was requested or loaded.",
 )
 missing = [s for s in required if s not in output]
 if missing:
     raise SystemExit(f"OVMF Shell output lacked {missing}:\n{output}")
 print("PASS: UEFI Shell output meets known-good and corrupt FV expectations")
 
-if output.count("Live FPDT discovery source=firmware-published ACPI XSDT/RSDT") < 2:
+if output.count("Live FPDT discovery source=firmware-published ACPI XSDT/RSDT") < 4:
     raise SystemExit("Both -perf-live and -perf-live -boot must execute in EFI Shell")

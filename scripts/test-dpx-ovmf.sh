@@ -18,6 +18,8 @@ cat >"$TMP/startup.nsh" <<'NSH'
 fs0:
 echo DPX_SMOKE_BEGIN > fs0:\dpx-result.txt
 DpX.efi -version >> fs0:\dpx-result.txt
+DpX.efi >> fs0:\dpx-result.txt
+DpX.efi -summary >> fs0:\dpx-result.txt
 DpX.efi -rom-analyze -input fs0:\VALID.FV -fv-space >> fs0:\dpx-result.txt
 DpX.efi -rom-analyze -input fs0:\BAD.FV -fv-space >> fs0:\dpx-result.txt
 DpX.efi -rom-scan -input fs0:\DUAL.ROM >> fs0:\dpx-result.txt
@@ -28,6 +30,7 @@ DpX.efi -perf-fpdt -input fs0:\VALID.FPDT >> fs0:\dpx-result.txt
 DpX.efi -perf-fpdt -input fs0:\BAD.FPDT >> fs0:\dpx-result.txt
 DpX.efi -perf-live >> fs0:\dpx-result.txt
 DpX.efi -perf-live -boot >> fs0:\dpx-result.txt
+DpX.efi -perf-live -pointers >> fs0:\dpx-result.txt
 echo DPX_SMOKE_DONE >> fs0:\dpx-result.txt
 reset -s
 NSH
