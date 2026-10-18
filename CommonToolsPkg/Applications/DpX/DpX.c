@@ -15,6 +15,8 @@ DpXPrintHelp (
   )
 {
   Print (L"DpX %s - UEFI firmware performance and inventory tools\n", DPX_VERSION);
+  Print (L"  DpX.efi                 Inspect this DUT directly (no input files)\n");
+  Print (L"  DpX.efi -summary        Same local DUT survey\n");
   Print (L"  DpX.efi -help           Show help\n");
   Print (L"  DpX.efi -version        Show build version\n");
   Print (L"  DpX.efi -sysinfo        UEFI/CPU/SecureBoot information\n");
@@ -26,10 +28,49 @@ DpXPrintHelp (
   Print (L"  DpX.efi -rom-scan -input fs0:\\bios.bin  Scan standard independent FVs\n");
   Print (L"  DpX.efi -perf-parse -input fs0:\\BOOT.FBPT  Parse FPDT boot records\n");
   Print (L"  DpX.efi -perf-fpdt -input fs0:\\ACPI.FPDT  Validate ACPI FPDT pointers\n");
-  Print (L"  DpX.efi -perf-live      Inspect firmware ACPI FPDT (no pointer reads)\n");
+  Print (L"  DpX.efi -perf-live      Read this machine ACPI FPDT and safe FBPT\n");
+  Print (L"  DpX.efi -perf-live -pointers  ACPI pointer records only\n");
   Print (L"\nM2 partial: single-FV at offset 0 and ROM scan of independent FV headers.\n");
-  Print (L"Live FPDT, full DP pairing, SPI dump, N-boot, nested FV: NOT IMPLEMENTED.\n");
+  Print (L"Full DP event pairing, live physical FV space, SPI dump, N-boot: NOT IMPLEMENTED.\n");
+  Print (L"File import is an OPTIONAL offline validation workflow.\n");
   Print (L"No firmware writes, erases, lock changes or automatic resets are performed.\n");
+}
+
+STATIC
+EFI_STATUS
+DpXRunLocalSurvey (
+  VOID
+  )
+{
+  EFI_STATUS  Status;
+  UINTN       Available;
+
+  Available = 0;
+  Print (L"DpX %s | LIVE DUT survey | no ROM/FPDT input needed\n", DPX_VERSION);
+  Print (L"\n[1/4] Current system information\n");
+  Status = DpXPrintSystemInfo ();
+  if (!EFI_ERROR (Status)) { ++Available; }
+  else { Print (L"SystemInfo unavailable (%r)\n", Status); }
+
+  Print (L"\n[2/4] Local ACPI FPDT and Basic Boot performance\n");
+  Status = DpXInspectLiveFpdt (TRUE);
+  if (!EFI_ERROR (Status)) { ++Available; }
+  else { Print (L"FPDT/FBPT unavailable (%r); no inferred boot time\n", Status); }
+
+  Print (L"\n[3/4] Local firmware volume information\n");
+  Status = DpXListFirmwareVolumes (FALSE, TRUE, FALSE, 0);
+  if (!EFI_ERROR (Status)) { ++Available; }
+  else { Print (L"FV enumeration unavailable (%r)\n", Status); }
+
+  Print (L"\n[4/4] Local SPI/FVB access capabilities\n");
+  Status = DpXPrintRomInfo ();
+  if (!EFI_ERROR (Status)) { ++Available; }
+  else { Print (L"ROM capability inventory unavailable (%r)\n", Status); }
+
+  Print (L"\nDpX DUT survey complete: categories=%u/4\n", (UINT32)Available);
+  Print (L"No external firmware image was requested or loaded.\n");
+  Print (L"Unavailable/unsupported readings remain N/A.\n");
+  return Available != 0 ? EFI_SUCCESS : EFI_NOT_FOUND;
 }
 
 STATIC
@@ -90,8 +131,7 @@ DpXEntryPoint (
   }
 
   if (Parameters->Argc == 1) {
-    DpXPrintHelp ();
-    return EFI_SUCCESS;
+    return DpXRunLocalSurvey ();
   }
 
   Command = Parameters->Argv[1];
@@ -100,6 +140,10 @@ DpXEntryPoint (
   {
     DpXPrintHelp ();
     return EFI_SUCCESS;
+  }
+
+  if (StrCmp (Command, L"-summary") == 0) {
+    return Parameters->Argc == 2 ? DpXRunLocalSurvey () : EFI_INVALID_PARAMETER;
   }
 
   if (StrCmp (Command, L"-version") == 0) {
@@ -156,7 +200,22 @@ DpXEntryPoint (
   }
 
   if (StrCmp (Command, L"-perf-live") == 0) {
-    return (Parameters->Argc == 2) ? DpXInspectLiveFpdt () : EFI_INVALID_PARAMETER;
+    if (Parameters->Argc == 2) {
+      return DpXInspectLiveFpdt (TRUE);
+    }
+
+    if (Parameters->Argc == 3) {
+      if (StrCmp (Parameters->Argv[2], L"-pointers") == 0) {
+        return DpXInspectLiveFpdt (FALSE);
+      }
+
+      if (StrCmp (Parameters->Argv[2], L"-boot") == 0) {
+        return DpXInspectLiveFpdt (TRUE);
+      }
+    }
+
+    Print (L"Usage: DpX.efi -perf-live [-boot|-pointers]\n");
+    return EFI_INVALID_PARAMETER;
   }
 
   if (StrCmp (Command, L"-perf-fpdt") == 0) {
