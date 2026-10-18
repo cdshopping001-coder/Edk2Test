@@ -6,12 +6,16 @@ on:
     paths:
       - "CommonToolsPkg/**"
       - "scripts/build-dpx-linux.sh"
+      - "scripts/test-dpx-ovmf.sh"
+      - "tests/dpx/**"
       - "scripts/build-dpx-windows.cmd"
       - ".github/workflows/build-dpx.yml"
   pull_request:
     paths:
       - "CommonToolsPkg/**"
       - "scripts/build-dpx-linux.sh"
+      - "scripts/test-dpx-ovmf.sh"
+      - "tests/dpx/**"
       - "scripts/build-dpx-windows.cmd"
       - ".github/workflows/build-dpx.yml"
   workflow_dispatch:
@@ -57,6 +61,15 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: bash scripts/build-dpx-linux.sh RELEASE
+
+      - name: Install OVMF runtime test tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y qemu-system-x86 ovmf dosfstools mtools
+
+      - name: Execute DpX.efi in QEMU OVMF Shell
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash scripts/test-dpx-ovmf.sh artifacts/dpx/DpX-GCC-X64-RELEASE.efi
 
       - name: Install Windows NASM and iASL
         if: runner.os == 'Windows'
