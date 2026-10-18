@@ -22,7 +22,7 @@ DpXPrintHelp (
   Print (L"  DpX.efi -sysinfo        UEFI/CPU/SecureBoot information\n");
   Print (L"  DpX.efi -fv-list        Enumerate firmware-visible FV2 volumes\n");
   Print (L"  DpX.efi -fv-files -fv N List logical FFS files in FV index N\n");
-  Print (L"  DpX.efi -fv-space       Live FV2 physical sizes remain N/A\n");
+  Print (L"  DpX.efi -fv-space       Inspect local FVB raw Total/Used/Free (when readable)\n");
   Print (L"  DpX.efi -rom-analyze -input fs0:\\test.fv -fv-space\n");
   Print (L"  DpX.efi -rom-info       Probe FV2/FVB/SPI-NOR/HCI protocol handles\n");
   Print (L"  DpX.efi -rom-scan -input fs0:\\bios.bin  Scan standard independent FVs\n");
@@ -31,7 +31,7 @@ DpXPrintHelp (
   Print (L"  DpX.efi -perf-live      Read this machine ACPI FPDT and safe FBPT\n");
   Print (L"  DpX.efi -perf-live -pointers  ACPI pointer records only\n");
   Print (L"\nM2 partial: single-FV at offset 0 and ROM scan of independent FV headers.\n");
-  Print (L"Full DP event pairing, live physical FV space, SPI dump, N-boot: NOT IMPLEMENTED.\n");
+  Print (L"Deep DP event pairing, platform SPI dump, N-boot: NOT IMPLEMENTED.\n");
   Print (L"File import is an OPTIONAL offline validation workflow.\n");
   Print (L"No firmware writes, erases, lock changes or automatic resets are performed.\n");
 }
@@ -58,9 +58,11 @@ DpXRunLocalSurvey (
   else { Print (L"FPDT/FBPT unavailable (%r); no inferred boot time\n", Status); }
 
   Print (L"\n[3/4] Local firmware volume information\n");
-  Status = DpXListFirmwareVolumes (FALSE, TRUE, FALSE, 0);
+  Status = DpXListFirmwareVolumes (FALSE, FALSE, FALSE, 0);
   if (!EFI_ERROR (Status)) { ++Available; }
-  else { Print (L"FV enumeration unavailable (%r)\n", Status); }
+  else { Print (L"FV2 enumeration unavailable (%r)\n", Status); }
+  Status = DpXInspectLiveFvbSpaces ();
+  if (EFI_ERROR (Status)) { Print (L"Raw FV physical space unavailable (%r)\n", Status); }
 
   Print (L"\n[4/4] Local SPI/FVB access capabilities\n");
   Status = DpXPrintRomInfo ();
@@ -161,8 +163,9 @@ DpXEntryPoint (
   }
 
   if (StrCmp (Command, L"-fv-space") == 0) {
-    return (Parameters->Argc == 2) ?
-      DpXListFirmwareVolumes (FALSE, TRUE, FALSE, 0) : EFI_INVALID_PARAMETER;
+    if (Parameters->Argc != 2) { return EFI_INVALID_PARAMETER; }
+    DpXListFirmwareVolumes (FALSE, FALSE, FALSE, 0);
+    return DpXInspectLiveFvbSpaces ();
   }
 
   if (StrCmp (Command, L"-fv-files") == 0) {

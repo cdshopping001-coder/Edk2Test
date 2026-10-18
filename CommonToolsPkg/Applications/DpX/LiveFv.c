@@ -271,10 +271,8 @@ InspectOneFvb (
   UINT64 Percentage;
   UINT32 Size24;
   UINTN HeaderSize;
-  UINTN I;
   UINT32 Count;
   UINT32 Pad;
-  BOOLEAN IsValid;
 
   Print (L"  LiveFVB[%u]: ", (UINT32)Index);
   Attr = 0;
