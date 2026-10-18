@@ -25,6 +25,11 @@ EnumerateFiles (
   EFI_FV_FILE_ATTRIBUTES  Attributes;
   UINTN                   FileSize;
   UINTN                   Count;
+  VOID                    *Data;
+  UINTN                   ReadBytes;
+  EFI_FV_FILETYPE         FoundType;
+  EFI_FV_FILE_ATTRIBUTES  FoundAttrs;
+  UINT32                  Authentication;
 
   if ((Fv->KeySize == 0) || (Fv->KeySize > DPX_MAX_KEY_SIZE)) {
     Print (L"  FFS listing unavailable: unsafe/invalid KeySize=%u\n", (UINT32)Fv->KeySize);
@@ -52,9 +57,37 @@ EnumerateFiles (
       return Status;
     }
 
-    Print (L"  [%u] GUID=%g Type=0x%02x LogicalSize=%lu Attr=0x%08x\n",
+    Print (L"  [%u] GUID=%g Type=0x%02x LogicalSize=%lu Attr=0x%08x Offset=N/A (FV2 logical view)\n",
            (UINT32)Count, &Name, (UINT32)FileType,
            (UINT64)FileSize, (UINT32)Attributes);
+    if (FileType != EFI_FV_FILETYPE_FFS_PAD) {
+      if ((FileSize == 0) || (FileSize > 4 * 1024 * 1024)) {
+        Print (L"    SectionDetail=N/A reason=LOGICAL_FILE_SIZE_LIMIT\n");
+        continue;
+      }
+
+      Data = AllocatePool (FileSize);
+      if (Data == NULL) {
+        Print (L"    SectionDetail=N/A reason=OUT_OF_RESOURCES\n");
+        continue;
+      }
+
+      ReadBytes = FileSize;
+      FoundType = 0;
+      FoundAttrs = 0;
+      Authentication = 0;
+      Status = Fv->ReadFile (
+                     Fv, &Name, &Data, &ReadBytes,
+                     &FoundType, &FoundAttrs, &Authentication
+                     );
+      if (Status == EFI_SUCCESS && ReadBytes <= FileSize) {
+        DpXInspectFfsSections ((CONST UINT8 *)Data, ReadBytes, FALSE, 0);
+      } else {
+        Print (L"    SectionDetail=N/A reason=FV2_READFILE_FAILED (%r)\n", Status);
+      }
+
+      FreePool (Data);
+    }
   }
 
   FreePool (Key);

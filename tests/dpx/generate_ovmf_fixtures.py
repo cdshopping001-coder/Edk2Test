@@ -5,6 +5,7 @@ import sys
 from test_raw_fv_fixtures import make_fixture
 from test_fbpt_fixtures import make_fbpt
 from test_fpdt_acpi_fixtures import make_fpdt
+from deep_fv_fixtures import make_nested_plain_fv, make_nested_efi_compressed_fv
 out = Path(sys.argv[1])
 raw, used = make_fixture(inverted=True)
 bad, _ = make_fixture(inverted=True, bad_checksum=True)
@@ -21,3 +22,9 @@ dual = bytes([0x5A]) * 4096 + raw + bytes([0xFF]) * 4096 + raw + bytes([0x00]) *
 
 (out / 'VALID.FPDT').write_bytes(make_fpdt())
 (out / 'BAD.FPDT').write_bytes(make_fpdt(bad_checksum=True))
+
+root = Path(__file__).resolve().parents[2]
+plain_nested, _ = make_nested_plain_fv()
+compressed_nested, _ = make_nested_efi_compressed_fv(root)
+(out / "NESTED.FV").write_bytes(plain_nested)
+(out / "UEFICOMP.FV").write_bytes(compressed_nested)

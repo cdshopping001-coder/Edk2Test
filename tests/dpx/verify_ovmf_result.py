@@ -5,7 +5,7 @@ import sys
 data = Path(sys.argv[1]).read_bytes()
 output = data.decode("utf-16le", errors="replace") if b"\0" in data else data.decode("utf-8", errors="replace")
 required = (
-    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.9.0",
+    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.10.0",
     "Total=4096", "Used=136", "Free=3960",
     "status=verified_contiguous_layout",
     "reason=INVALID_FV_HEADER_OR_BLOCKMAP", "Used=N/A",
@@ -30,6 +30,10 @@ required = (
     "[3/4] Local firmware volume information",
     "[4/4] Local SPI/FVB access capabilities",
     "Live read-only FVB space accounting:",
+    "NestedFV FFSCount=2 PAD=1",
+    "Decompress=UEFI_STANDARD decodedBytes=4100; parent physical usage UNCHANGED",
+    "Section depth=0 Type=0x17",
+    "Accounting=CHILD_ONLY_DO_NOT_ADD_TO_PARENT",
     "DpX DUT survey complete:",
     "No external firmware image was requested or loaded.",
 )

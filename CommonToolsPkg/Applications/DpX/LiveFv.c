@@ -252,7 +252,8 @@ STATIC
 EFI_STATUS
 InspectOneFvb (
   IN EFI_FIRMWARE_VOLUME_BLOCK2_PROTOCOL *Fvb,
-  IN UINTN                               Index
+  IN UINTN                               Index,
+  IN BOOLEAN                             Details
   )
 {
   EFI_STATUS Status;
@@ -273,6 +274,9 @@ InspectOneFvb (
   UINTN HeaderSize;
   UINT32 Count;
   UINT32 Pad;
+  UINT32 Deleted;
+  UINT8 State;
+  UINT8 *FileData;
 
   Print (L"  LiveFVB[%u]: ", (UINT32)Index);
   Attr = 0;
@@ -327,7 +331,8 @@ InspectOneFvb (
     return Status;
   }
 
-  Print (L"Total=%lu bytes source=verified FVB raw layout\n", Fv.FvLength);
+  Print (L"Total=%lu bytes source=verified FVB raw layout FormatGuid=%g\n",
+         Fv.FvLength, &Fv.FileSystemGuid);
   Erase = (Fv.Attributes & EFI_FVB2_ERASE_POLARITY) ? 0xFF : 0;
   Start = Fv.HeaderLength;
   if (Fv.ExtHeaderOffset != 0) {
@@ -348,6 +353,8 @@ InspectOneFvb (
     }
 
     Start = Fv.ExtHeaderOffset + Ext.ExtHeaderSize;
+    Print (L"    FV NameGuid=%g Offset=FVB-relative-0 (not SPI flash offset)\n",
+           &Ext.FvName);
   }
 
   if (Start > Fv.FvLength - 7) {
@@ -358,6 +365,7 @@ InspectOneFvb (
   Offset = (Start + 7) & ~7ULL;
   Count = 0;
   Pad = 0;
+  Deleted = 0;
   Status = EFI_SUCCESS;
 
   while (Offset < Fv.FvLength) {
@@ -426,8 +434,48 @@ InspectOneFvb (
       break;
     }
 
+    State = HighestState (Ffs.State, Erase);
     if (Ffs.Type == EFI_FV_FILETYPE_FFS_PAD) {
       ++Pad;
+    }
+
+    if (State == EFI_FILE_DELETED) {
+      ++Deleted; // Still allocated in physical Used, never Free.
+    }
+
+    if (Details) {
+      Print (L"    FFS[%u] GUID=%g Type=0x%02x Offset=0x%lx (FV-relative) PhysicalSize=%lu AlignedBytes=%lu State=%s\n",
+             Count, &Ffs.Name, Ffs.Type, Offset, Size, Aligned,
+             State == EFI_FILE_DELETED ? L"DELETED_UNRECLAIMED" :
+             Ffs.Type == EFI_FV_FILETYPE_FFS_PAD ? L"PAD_ALLOCATED" : L"VALID");
+      if ((Ffs.Type != EFI_FV_FILETYPE_FFS_PAD) &&
+          (State != EFI_FILE_DELETED) &&
+          (Size > HeaderSize))
+      {
+        if (Size - HeaderSize > 4 * 1024 * 1024) {
+          Print (L"      SectionDetail=N/A reason=FFS_PAYLOAD_TOO_LARGE\n");
+        } else {
+          FileData = AllocatePool ((UINTN)(Size - HeaderSize));
+          if (FileData == NULL) {
+            Print (L"      SectionDetail=N/A reason=OUT_OF_RESOURCES\n");
+          } else {
+            Status = ReadFvbBytes (Fvb, Offset + HeaderSize,
+                                   FileData, (UINTN)(Size - HeaderSize));
+            if (!EFI_ERROR (Status)) {
+              DpXInspectFfsSections (
+                FileData, (UINTN)(Size - HeaderSize),
+                TRUE, Offset + HeaderSize
+                );
+            } else {
+              Print (L"      SectionDetail=N/A reason=FVB_PAYLOAD_READ_FAILED (%r)\n",
+                     Status);
+              Status = EFI_SUCCESS;
+            }
+
+            FreePool (FileData);
+          }
+        }
+      }
     }
 
     Offset += Aligned;
@@ -447,13 +495,14 @@ InspectOneFvb (
   Percentage = Offset * 10000 / Fv.FvLength;
   Print (L"    Used=%lu Free=%lu Usage=%lu.%02u%% FFS=%u PAD=%u\n",
          Offset, Free, Percentage / 100, (UINT32)(Percentage % 100), Count, Pad);
+  Print (L"    DeletedUnreclaimed=%u (included in Used)\n", Deleted);
   Print (L"    Status=VERIFIED_RAW_FVB no file-input needed\n");
   return EFI_SUCCESS;
 }
 
 EFI_STATUS
 DpXInspectLiveFvbSpaces (
-  VOID
+  IN BOOLEAN Details
   )
 {
   EFI_STATUS Status;
@@ -494,7 +543,7 @@ DpXInspectLiveFvbSpaces (
       continue;
     }
 
-    ItemStatus = InspectOneFvb (Fvb, Index);
+    ItemStatus = InspectOneFvb (Fvb, Index, Details);
     if (!EFI_ERROR (ItemStatus)) {
       ++Verified;
     }

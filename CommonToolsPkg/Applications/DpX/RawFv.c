@@ -133,6 +133,8 @@ ParseRawFv (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 InputSize,
   UINT32 Count;
   UINT32 Pad;
   UINTN FfsHeaderSize;
+  UINT8 *FfsPayload;
+  UINT8 State;
 
   if (Base > InputSize) { return EFI_INVALID_PARAMETER; }
   Header = NULL;
@@ -246,7 +248,35 @@ ParseRawFv (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 InputSize,
       Status = EFI_VOLUME_CORRUPTED;
       break;
     }
+    State = FileState (Ffs.State, Erase);
+    Print(L"  FFS[%u] GUID=%g Type=0x%02x Offset=0x%lx (FV-relative) PhysicalSize=%lu State=%s\n",
+          Count, &Ffs.Name, Ffs.Type, Offset, FileBytes,
+          State == EFI_FILE_DELETED ? L"DELETED_UNRECLAIMED" :
+          Ffs.Type == EFI_FV_FILETYPE_FFS_PAD ? L"PAD_ALLOCATED" : L"VALID");
     if (Ffs.Type == EFI_FV_FILETYPE_FFS_PAD) { ++Pad; }
+    // Decode is diagnostic only: never use decompressed size in Used/Free.
+    if (Ffs.Type != EFI_FV_FILETYPE_FFS_PAD &&
+        State != EFI_FILE_DELETED && FileBytes > FfsHeaderSize)
+    {
+      if (FileBytes - FfsHeaderSize <= 4 * 1024 * 1024) {
+        FfsPayload = AllocatePool ((UINTN)(FileBytes - FfsHeaderSize));
+        if (FfsPayload != NULL) {
+          Status = ReadAt (Shell, File, Base, Offset + FfsHeaderSize,
+                           FfsPayload, (UINTN)(FileBytes - FfsHeaderSize));
+          if (!EFI_ERROR(Status)) {
+            DpXInspectFfsSections (FfsPayload,
+                                   (UINTN)(FileBytes - FfsHeaderSize),
+                                   TRUE, Offset + FfsHeaderSize);
+          } else {
+            Print (L"    SectionDetail=N/A reason=RAW_FFS_PAYLOAD_UNAVAILABLE\n");
+            Status = EFI_SUCCESS;
+          }
+          FreePool (FfsPayload);
+        }
+      } else {
+        Print (L"    SectionDetail=N/A reason=FFS_PAYLOAD_OVER_LIMIT\n");
+      }
+    }
     Offset += Aligned;
     ++Count;
     if (Count >= DPX_MAX_FFS_RECORDS) {
