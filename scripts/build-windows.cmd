@@ -41,7 +41,7 @@ call "%REPO_ROOT%\.venv\Scripts\activate.bat"
 if errorlevel 1 exit /b 1
 pushd "%REPO_ROOT%\edk2"
 if errorlevel 1 exit /b 1
-python -m pip install --disable-pip-version-check -r pip-requirements.txt
+python -m pip install --disable-pip-version-check -r "%REPO_ROOT%\scripts\pip-requirements-ovmf.txt"
 if errorlevel 1 goto fail
 call edksetup.bat Rebuild
 if errorlevel 1 goto fail

@@ -47,7 +47,7 @@ bash scripts/build-linux.sh DEBUG
 bash scripts/build-linux.sh RELEASE
 ```
 
-The script initializes submodules, creates `.venv`, installs the **pinned upstream** Python requirements, compiles BaseTools, runs edksetup, and builds OVMF X64. The expected firmware image is `edk2/Build/OvmfX64/DEBUG_GCC/FV/OVMF.fd` (or `RELEASE_GCC`).
+The script initializes submodules, creates `.venv`, installs the OVMF-specific Python requirements, compiles BaseTools, runs edksetup, and builds OVMF X64. The expected firmware image is `edk2/Build/OvmfX64/DEBUG_GCC/FV/OVMF.fd` (or `RELEASE_GCC`).
 
 ## Windows build (VS2022)
 
@@ -65,7 +65,7 @@ REM or
 scripts\build-windows.cmd RELEASE
 ```
 
-The script checks the compiler, NASM and iASL, installs upstream Python requirements into `.venv`, sets `NASM_PREFIX` and `IASL_PREFIX`, calls `edksetup.bat Rebuild`, and builds `OvmfPkg/OvmfPkgX64.dsc` with `-t VS2022`.
+The script checks the compiler, NASM and iASL, installs OVMF-specific Python requirements into `.venv`, sets `NASM_PREFIX` and `IASL_PREFIX`, calls `edksetup.bat Rebuild`, and builds `OvmfPkg/OvmfPkgX64.dsc` with `-t VS2022`.
 
 ## GitHub Actions
 
@@ -91,3 +91,7 @@ Before adopting a newer stable release, review upstream breaking changes and CI 
 - [EDK2 toolchain definitions](https://github.com/tianocore/edk2/blob/edk2-stable202608/BaseTools/Conf/tools_def.template)
 
 EDK II uses its upstream licenses; the submodule does not change upstream attribution.
+
+## Python dependency compatibility note
+
+The pinned `edk2-stable202608` requirements include `pylibfdt==1.7.2.post1`, which has had a known SWIG compatibility issue on some environments. OVMF X64 does not require `pylibfdt`. For this baseline only, the build wrappers therefore install `scripts/pip-requirements-ovmf.txt`, which preserves the other upstream pins but excludes `pylibfdt`. Projects requiring FIT/DTB support should install and validate an appropriate `pylibfdt` independently.

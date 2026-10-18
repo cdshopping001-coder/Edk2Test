@@ -16,7 +16,7 @@ git -C "$REPO_ROOT" submodule update --init --recursive
 python3 -m venv "$REPO_ROOT/.venv"
 # shellcheck disable=SC1091
 source "$REPO_ROOT/.venv/bin/activate"
-python -m pip install --disable-pip-version-check -r "$REPO_ROOT/edk2/pip-requirements.txt"
+python -m pip install --disable-pip-version-check -r "$REPO_ROOT/scripts/pip-requirements-ovmf.txt"
 
 mkdir -p "$REPO_ROOT/artifacts"
 cd "$REPO_ROOT/edk2"
