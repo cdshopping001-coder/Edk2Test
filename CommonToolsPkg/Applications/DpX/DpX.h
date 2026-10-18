@@ -1,5 +1,5 @@
 /** @file
-  DpX v0.2 Shell application contract.
+  DpX v0.3 Shell application contract.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 #ifndef DPX_H_
@@ -7,7 +7,7 @@
 
 #include <Uefi.h>
 
-#define DPX_VERSION         L"0.2.0"
+#define DPX_VERSION         L"0.3.0"
 #define DPX_MAX_FV_HANDLES  1024
 #define DPX_MAX_FFS_RECORDS 32768
 #define DPX_MAX_KEY_SIZE    4096
@@ -37,6 +37,11 @@ DpXPrintRomInfo (
 
 EFI_STATUS
 DpXAnalyzeRawFirmwareFile (
+  IN CONST CHAR16 *Path
+  );
+
+EFI_STATUS
+DpXScanRawFirmwareFile (
   IN CONST CHAR16 *Path
   );
 

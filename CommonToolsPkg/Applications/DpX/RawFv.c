@@ -8,6 +8,8 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
+#include <Guid/FirmwareFileSystem2.h>
+#include <Guid/FirmwareFileSystem3.h>
 #include <Pi/PiFirmwareFile.h>
 #include <Pi/PiFirmwareVolume.h>
 #include <Protocol/Shell.h>
@@ -15,13 +17,16 @@
 
 #define DPX_MAX_RAW_FV_LENGTH (512ULL * 1024 * 1024)
 #define DPX_IO_CHUNK          4096
+#define DPX_SCAN_CHUNK        65536
+#define DPX_MAX_SCAN_VOLUMES  128
 
 STATIC EFI_STATUS
-ReadAt (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 Offset, VOID *Data, UINTN Length)
+ReadAt (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 Base, UINT64 Offset, VOID *Data, UINTN Length)
 {
   EFI_STATUS Status;
   UINTN ReadSize;
-  Status = Shell->SetFilePosition (File, Offset);
+  if (Base > MAX_UINT64 - Offset) { return EFI_INVALID_PARAMETER; }
+  Status = Shell->SetFilePosition (File, Base + Offset);
   if (EFI_ERROR (Status)) { return Status; }
   ReadSize = Length;
   Status = Shell->ReadFile (File, &ReadSize, Data);
@@ -39,14 +44,14 @@ IsErase (CONST UINT8 *Data, UINTN Length, UINT8 Erase)
 }
 
 STATIC EFI_STATUS
-VerifyTail (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 Begin, UINT64 End, UINT8 Erase)
+VerifyTail (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 Base, UINT64 Begin, UINT64 End, UINT8 Erase)
 {
   EFI_STATUS Status;
   UINT8 Buffer[DPX_IO_CHUNK];
   UINTN ReadSize;
   while (Begin < End) {
     ReadSize = (UINTN)((End - Begin) > sizeof(Buffer) ? sizeof(Buffer) : End - Begin);
-    Status = ReadAt (Shell, File, Begin, Buffer, ReadSize);
+    Status = ReadAt (Shell, File, Base, Begin, Buffer, ReadSize);
     if (EFI_ERROR (Status)) { return Status; }
     if (!IsErase (Buffer, ReadSize, Erase)) { return EFI_VOLUME_CORRUPTED; }
     Begin += ReadSize;
@@ -109,7 +114,7 @@ ValidFfsChecksum (CONST UINT8 *Raw, UINTN Length)
 }
 
 STATIC EFI_STATUS
-ParseRawFv (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 InputSize)
+ParseRawFv (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 InputSize, UINT64 Base)
 {
   EFI_STATUS Status;
   EFI_FIRMWARE_VOLUME_HEADER Fv;
@@ -129,27 +134,34 @@ ParseRawFv (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 InputSize)
   UINT32 Pad;
   UINTN FfsHeaderSize;
 
+  if (Base > InputSize) { return EFI_INVALID_PARAMETER; }
   Header = NULL;
-  Status = ReadAt (Shell, File, 0, &Fv, sizeof(Fv));
+  Status = ReadAt (Shell, File, Base, 0, &Fv, sizeof(Fv));
   if (EFI_ERROR(Status)) { Print(L"Total=N/A Used=N/A Free=N/A reason=FV_HEADER_UNREADABLE\n"); return Status; }
   if (Fv.Signature != EFI_FVH_SIGNATURE || Fv.Revision != EFI_FVH_REVISION ||
       Fv.FvLength == 0 || Fv.FvLength > DPX_MAX_RAW_FV_LENGTH ||
-      Fv.FvLength > InputSize || Fv.HeaderLength < sizeof(Fv) ||
+      Fv.FvLength > InputSize - Base || Fv.HeaderLength < sizeof(Fv) ||
       Fv.HeaderLength > Fv.FvLength) {
     Print(L"Total=N/A Used=N/A Free=N/A reason=NO_COMPLETE_STANDARD_FV_AT_OFFSET_ZERO\n");
     return EFI_UNSUPPORTED;
   }
 
+  if (!CompareGuid (&Fv.FileSystemGuid, &gEfiFirmwareFileSystem2Guid) &&
+      !CompareGuid (&Fv.FileSystemGuid, &gEfiFirmwareFileSystem3Guid)) {
+    Print(L"  Total=N/A Used=N/A Free=N/A reason=UNSUPPORTED_FFS_GUID\n");
+    return EFI_UNSUPPORTED;
+  }
+
   Header = AllocatePool(Fv.HeaderLength);
   if (Header == NULL) { return EFI_OUT_OF_RESOURCES; }
-  Status = ReadAt(Shell, File, 0, Header, Fv.HeaderLength);
+  Status = ReadAt(Shell, File, Base, 0, Header, Fv.HeaderLength);
   if (!EFI_ERROR(Status)) { Status = ValidateFvHeader(Header, Fv.HeaderLength, Fv.FvLength); }
   if (EFI_ERROR(Status)) {
     Print(L"Total=N/A Used=N/A Free=N/A reason=INVALID_FV_HEADER_OR_BLOCKMAP (%r)\n", Status);
     goto End;
   }
 
-  Print(L"FV Total=%lu bytes source=validated PI FV Header\n", Fv.FvLength);
+  Print(L"FV offset=0x%lx Total=%lu bytes source=validated PI FV Header\n", Base, Fv.FvLength);
   Erase = (Fv.Attributes & EFI_FVB2_ERASE_POLARITY) ? 0xFF : 0x00;
   FirstFile = Fv.HeaderLength;
 
@@ -161,7 +173,7 @@ ParseRawFv (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 InputSize)
       Print(L"  reason=FV_EXT_HEADER_BOUNDS\n");
       goto End;
     }
-    Status = ReadAt(Shell, File, Fv.ExtHeaderOffset, &Ext, sizeof(Ext));
+    Status = ReadAt(Shell, File, Base, Fv.ExtHeaderOffset, &Ext, sizeof(Ext));
     if (EFI_ERROR(Status)) { goto End; }
     if (Ext.ExtHeaderSize < sizeof(Ext) ||
         Ext.ExtHeaderSize > 65536 ||
@@ -186,13 +198,13 @@ ParseRawFv (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 InputSize)
   Pad = 0;
   while (Offset < Fv.FvLength) {
     if (Fv.FvLength - Offset < sizeof(Ffs)) {
-      Status = VerifyTail(Shell, File, Offset, Fv.FvLength, Erase);
+      Status = VerifyTail(Shell, File, Base, Offset, Fv.FvLength, Erase);
       break;
     }
-    Status = ReadAt(Shell, File, Offset, &Ffs, sizeof(Ffs));
+    Status = ReadAt(Shell, File, Base, Offset, &Ffs, sizeof(Ffs));
     if (EFI_ERROR(Status)) { break; }
     if (IsErase((CONST UINT8 *)&Ffs, sizeof(Ffs), Erase)) {
-      Status = VerifyTail(Shell, File, Offset, Fv.FvLength, Erase);
+      Status = VerifyTail(Shell, File, Base, Offset, Fv.FvLength, Erase);
       break;
     }
     if (FileState(Ffs.State, Erase) != EFI_FILE_DATA_VALID &&
@@ -208,7 +220,7 @@ ParseRawFv (EFI_SHELL_PROTOCOL *Shell, SHELL_FILE_HANDLE File, UINT64 InputSize)
       Status = EFI_VOLUME_CORRUPTED;
       break;
     }
-    Status = ReadAt(Shell, File, Offset, FfsRaw, FfsHeaderSize);
+    Status = ReadAt(Shell, File, Base, Offset, FfsRaw, FfsHeaderSize);
     if (EFI_ERROR(Status)) { break; }
     if (!ValidFfsChecksum(FfsRaw, FfsHeaderSize)) {
       Status = EFI_CRC_ERROR;
@@ -285,8 +297,209 @@ DpXAnalyzeRawFirmwareFile (IN CONST CHAR16 *Path)
   }
   if (!EFI_ERROR(Status)) {
     Print(L"Input=%s length=%lu bytes (single standard FV at offset 0)\n", Path, Size);
-    Status = ParseRawFv(Shell, File, Size);
+    Status = ParseRawFv(Shell, File, Size, 0);
   }
   Shell->CloseFile(File);
+  return Status;
+}
+
+
+/**
+  Probe only fully bounded, structurally sound FV headers.
+  This rejects incidental "_FVH" signatures in proprietary ROM bytes.
+**/
+STATIC EFI_STATUS
+ProbeRawFv (
+  IN EFI_SHELL_PROTOCOL  *Shell,
+  IN SHELL_FILE_HANDLE   File,
+  IN UINT64              InputSize,
+  IN UINT64              Candidate,
+  OUT UINT64             *Length
+  )
+{
+  EFI_FIRMWARE_VOLUME_HEADER  Fv;
+  EFI_STATUS                  Status;
+  UINT8                       *Raw;
+
+  if ((Candidate > InputSize) ||
+      (InputSize - Candidate < sizeof (Fv)) ||
+      (Length == NULL))
+  {
+    return EFI_NOT_FOUND;
+  }
+
+  Status = ReadAt (Shell, File, Candidate, 0, &Fv, sizeof (Fv));
+  if (EFI_ERROR (Status) ||
+      (Fv.Signature != EFI_FVH_SIGNATURE) ||
+      (Fv.Revision != EFI_FVH_REVISION) ||
+      (Fv.FvLength > InputSize - Candidate) ||
+      (Fv.FvLength > DPX_MAX_RAW_FV_LENGTH) ||
+      (Fv.HeaderLength < sizeof (Fv)) ||
+      (Fv.HeaderLength > Fv.FvLength) ||
+      (!CompareGuid (&Fv.FileSystemGuid, &gEfiFirmwareFileSystem2Guid) &&
+       !CompareGuid (&Fv.FileSystemGuid, &gEfiFirmwareFileSystem3Guid)))
+  {
+    return EFI_NOT_FOUND;
+  }
+
+  Raw = AllocatePool (Fv.HeaderLength);
+  if (Raw == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  Status = ReadAt (Shell, File, Candidate, 0, Raw, Fv.HeaderLength);
+  if (!EFI_ERROR (Status)) {
+    Status = ValidateFvHeader (Raw, Fv.HeaderLength, Fv.FvLength);
+  }
+
+  FreePool (Raw);
+  if (!EFI_ERROR (Status)) {
+    *Length = Fv.FvLength;
+  }
+
+  return Status;
+}
+
+/**
+  Scan a ROM image for nonoverlapping standard FV headers.
+  Nested FV content is currently skipped deliberately to avoid double counting.
+**/
+EFI_STATUS
+DpXScanRawFirmwareFile (
+  IN CONST CHAR16  *Path
+  )
+{
+  EFI_SHELL_PROTOCOL  *Shell;
+  SHELL_FILE_HANDLE   File;
+  EFI_STATUS          Status;
+  EFI_STATUS          ParseStatus;
+  UINT64              Size;
+  UINT64              At;
+  UINT64              Candidate;
+  UINT64              SignatureAt;
+  UINT64              FvLength;
+  UINT64              SkipThrough;
+  UINT8               *Scan;
+  UINTN               ReadSize;
+  UINTN               I;
+  UINTN               Found;
+  UINTN               Verified;
+
+  if ((Path == NULL) || (*Path == L'\0')) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Shell = NULL;
+  File  = NULL;
+  Status = gBS->LocateProtocol (&gEfiShellProtocolGuid, NULL, (VOID **)&Shell);
+  if (EFI_ERROR (Status) || (Shell == NULL)) {
+    Print (L"Shell Protocol unavailable (%r)\n", Status);
+    return EFI_UNSUPPORTED;
+  }
+
+  Status = Shell->OpenFileByName (Path, &File, EFI_FILE_MODE_READ);
+  if (EFI_ERROR (Status)) {
+    Print (L"ROM input unavailable: %r\n", Status);
+    return Status;
+  }
+
+  Scan = NULL;
+  Size = 0;
+  Status = Shell->GetFileSize (File, &Size);
+  if (EFI_ERROR (Status) ||
+      (Size < sizeof (EFI_FIRMWARE_VOLUME_HEADER)) ||
+      (Size > DPX_MAX_RAW_FV_LENGTH))
+  {
+    Print (L"ROM scan unsupported size=%lu status=%r\n", Size, Status);
+    if (!EFI_ERROR (Status)) {
+      Status = EFI_UNSUPPORTED;
+    }
+
+    goto Exit;
+  }
+
+  Scan = AllocatePool (DPX_SCAN_CHUNK);
+  if (Scan == NULL) {
+    Status = EFI_OUT_OF_RESOURCES;
+    goto Exit;
+  }
+
+  Print (L"DpX raw ROM scan: input=%s size=%lu; independent FVs only\n", Path, Size);
+  Found = 0;
+  Verified = 0;
+  SkipThrough = 0;
+  At = 0;
+
+  while (At < Size) {
+    ReadSize = (UINTN)((Size - At > DPX_SCAN_CHUNK) ?
+                        DPX_SCAN_CHUNK : (Size - At));
+    Status = ReadAt (Shell, File, 0, At, Scan, ReadSize);
+    if (EFI_ERROR (Status)) {
+      Print (L"ROM scan stopped: unreadable input at 0x%lx\n", At);
+      goto Exit;
+    }
+
+    for (I = 0; I + 4 <= ReadSize; ++I) {
+      if ((Scan[I] != '_') || (Scan[I+1] != 'F') ||
+          (Scan[I+2] != 'V') || (Scan[I+3] != 'H'))
+      {
+        continue;
+      }
+
+      SignatureAt = At + I;
+      if (SignatureAt < OFFSET_OF (EFI_FIRMWARE_VOLUME_HEADER, Signature)) {
+        continue;
+      }
+
+      Candidate = SignatureAt - OFFSET_OF (EFI_FIRMWARE_VOLUME_HEADER, Signature);
+      if (((Candidate & 7) != 0) || (Candidate < SkipThrough)) {
+        continue;
+      }
+
+      Status = ProbeRawFv (Shell, File, Size, Candidate, &FvLength);
+      if (Status == EFI_OUT_OF_RESOURCES) {
+        goto Exit;
+      }
+
+      if (EFI_ERROR (Status)) {
+        continue;  // Ignore unverified signatures inside opaque data.
+      }
+
+      if (Found >= DPX_MAX_SCAN_VOLUMES) {
+        Print (L"FV discovery exceeded limit (%u)\n", DPX_MAX_SCAN_VOLUMES);
+        Status = EFI_OUT_OF_RESOURCES;
+        goto Exit;
+      }
+
+      ++Found;
+      Print (L"\nFV[%u] ROM offset=0x%lx length=%lu\n",
+             (UINT32)(Found - 1), Candidate, FvLength);
+      ParseStatus = ParseRawFv (Shell, File, Size, Candidate);
+      if (!EFI_ERROR (ParseStatus)) {
+        ++Verified;
+      }
+
+      // Skip child signatures inside this candidate's byte range to avoid
+      // double counting parent and nested FV. Child parsing is a later stage.
+      SkipThrough = Candidate + FvLength;
+    }
+
+    if (At + ReadSize == Size) {
+      break;
+    }
+
+    At += ReadSize - 3;  // Catch signatures crossing chunk boundaries.
+  }
+
+  Print (L"\nFV candidates=%u complete layouts=%u; nested/opaque regions not summed\n",
+         (UINT32)Found, (UINT32)Verified);
+  Status = (Verified != 0) ? EFI_SUCCESS : EFI_NOT_FOUND;
+
+Exit:
+  if (Scan != NULL) {
+    FreePool (Scan);
+  }
+
+  Shell->CloseFile (File);
   return Status;
 }
