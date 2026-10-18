@@ -18,7 +18,7 @@
 
 EFI_STATUS
 DpXInspectLiveFpdt (
-  VOID
+  IN BOOLEAN  ReadBoot
   )
 {
   EFI_ACPI_COMMON_HEADER                           *Common;
@@ -31,6 +31,7 @@ DpXInspectLiveFpdt (
   UINT32                                           Count;
   UINT32                                           BootCount;
   UINT32                                           S3Count;
+  UINT64                                           BootPhysicalAddress;
   UINTN                                            I;
   UINT8                                            Checksum;
 
@@ -73,6 +74,7 @@ DpXInspectLiveFpdt (
   Count     = 0;
   BootCount = 0;
   S3Count   = 0;
+  BootPhysicalAddress = 0;
 
   while (Offset < Acpi->Length) {
     if (Acpi->Length - Offset < sizeof (*Record)) {
@@ -103,6 +105,7 @@ DpXInspectLiveFpdt (
       CopyMem (&Boot, Bytes + Offset, sizeof (Boot));
       Print (L"  BootPerformanceTablePointer=0x%lx source=ACPI pointer (NOT DEREFERENCED)\n",
              Boot.BootPerformanceTablePointer);
+      BootPhysicalAddress = Boot.BootPerformanceTablePointer;
       ++BootCount;
     } else if (Record->Type == EFI_ACPI_5_0_FPDT_RECORD_TYPE_S3_PERFORMANCE_TABLE_POINTER) {
       if ((Record->Length < sizeof (S3)) ||
@@ -125,6 +128,15 @@ DpXInspectLiveFpdt (
 
   Print (L"Live FPDT status=verified Records=%u BootPointers=%u S3Pointers=%u\n",
          Count, BootCount, S3Count);
-  Print (L"  FBPT=N/A reason=LIVE_MEMORY_READ_NOT_YET_IMPLEMENTED\n");
-  return EFI_SUCCESS;
+  if (!ReadBoot) {
+    Print (L"  FBPT=N/A reason=LIVE_READ_NOT_REQUESTED (use -perf-live -boot)\n");
+    return EFI_SUCCESS;
+  }
+
+  if (BootCount == 0) {
+    Print (L"  FBPT=N/A reason=BOOT_POINTER_NOT_PUBLISHED\n");
+    return EFI_NOT_FOUND;
+  }
+
+  return DpXReadLiveFbpt (BootPhysicalAddress);
 }
