@@ -1,0 +1,69 @@
+name: EDK2 OVMF X64 Build
+
+on:
+  push:
+    branches: [main, "setup/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ovmf:
+    name: OVMF X64 / ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            toolchain: GCC
+          - os: windows-2022
+            toolchain: VS2022
+    steps:
+      - name: Checkout workspace and pinned EDK2 recursively
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Linux prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential nasm acpica-tools uuid-dev python3-venv python3-dev swig
+
+      - name: Build OVMF (Linux / GCC)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash scripts/build-linux.sh RELEASE
+
+      - name: Install Windows NASM and iASL
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install nasm iasl -y --no-progress
+
+      - name: Build OVMF (Windows / VS2022)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+          call scripts\build-windows.cmd RELEASE
+
+      - name: Upload firmware and build report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ovmf-x64-${{ matrix.toolchain }}
+          if-no-files-found: warn
+          path: |
+            edk2/Build/**/FV/OVMF.fd
+            artifacts/*-build-report.txt
