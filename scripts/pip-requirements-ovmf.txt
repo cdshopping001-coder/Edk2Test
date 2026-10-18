@@ -1,0 +1,8 @@
+# Derived from tianocore/edk2@edk2-stable202608/pip-requirements.txt
+# OVMF X64 does not need pylibfdt; omit its known incompatible source build.
+edk2-pytool-library~=0.23.14
+edk2-pytool-extensions~=0.31.0
+antlr4-python3-runtime==4.13.2
+lcov-cobertura==2.1.1
+regex==2026.5.9
+pefile
