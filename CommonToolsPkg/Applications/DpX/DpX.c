@@ -26,6 +26,7 @@ DpXPrintHelp (
   Print (L"  DpX.efi -rom-scan -input fs0:\\bios.bin  Scan standard independent FVs\n");
   Print (L"  DpX.efi -perf-parse -input fs0:\\BOOT.FBPT  Parse FPDT boot records\n");
   Print (L"  DpX.efi -perf-fpdt -input fs0:\\ACPI.FPDT  Validate ACPI FPDT pointers\n");
+  Print (L"  DpX.efi -perf-live      Inspect firmware ACPI FPDT (no pointer reads)\n");
   Print (L"\nM2 partial: single-FV at offset 0 and ROM scan of independent FV headers.\n");
   Print (L"Live FPDT, full DP pairing, SPI dump, N-boot, nested FV: NOT IMPLEMENTED.\n");
   Print (L"No firmware writes, erases, lock changes or automatic resets are performed.\n");
@@ -152,6 +153,10 @@ DpXEntryPoint (
       return EFI_INVALID_PARAMETER;
     }
     return DpXAnalyzeRawFirmwareFile (Parameters->Argv[3]);
+  }
+
+  if (StrCmp (Command, L"-perf-live") == 0) {
+    return (Parameters->Argc == 2) ? DpXInspectLiveFpdt () : EFI_INVALID_PARAMETER;
   }
 
   if (StrCmp (Command, L"-perf-fpdt") == 0) {

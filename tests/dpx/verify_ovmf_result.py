@@ -5,7 +5,7 @@ import sys
 data = Path(sys.argv[1]).read_bytes()
 output = data.decode("utf-16le", errors="replace") if b"\0" in data else data.decode("utf-8", errors="replace")
 required = (
-    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.5.0",
+    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.6.0",
     "Total=4096", "Used=136", "Free=3960",
     "status=verified_contiguous_layout",
     "reason=INVALID_FV_HEADER_OR_BLOCKMAP", "Used=N/A",
@@ -22,6 +22,8 @@ required = (
     "S3PerformanceTablePointer=0x0",
     "FPDT status=verified Records=3 BootPointers=1 S3Pointers=1 OtherRecords=1",
     "FPDT status=invalid reason=ACPI_CHECKSUM_INVALID",
+    "Live FPDT discovery source=firmware-published ACPI XSDT/RSDT",
+    "Live FPDT status=",
 )
 missing = [s for s in required if s not in output]
 if missing:

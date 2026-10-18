@@ -1,5 +1,5 @@
 /** @file
-  DpX v0.5 Shell application contract.
+  DpX v0.6 Shell application contract.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 #ifndef DPX_H_
@@ -7,7 +7,7 @@
 
 #include <Uefi.h>
 
-#define DPX_VERSION         L"0.5.0"
+#define DPX_VERSION         L"0.6.0"
 #define DPX_MAX_FV_HANDLES  1024
 #define DPX_MAX_FFS_RECORDS 32768
 #define DPX_MAX_KEY_SIZE    4096
@@ -53,6 +53,11 @@ DpXParseFbptFile (
 EFI_STATUS
 DpXParseFpdtAcpiFile (
   IN CONST CHAR16 *Path
+  );
+
+EFI_STATUS
+DpXInspectLiveFpdt (
+  VOID
   );
 
 #endif
