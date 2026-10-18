@@ -9,6 +9,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <Pi/PiFirmwareFile.h>
+#include <Pi/PiFirmwareVolume.h>
 #include <Protocol/FirmwareVolume2.h>
 
 STATIC
