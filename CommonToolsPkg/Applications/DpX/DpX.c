@@ -21,7 +21,8 @@ DpXPrintHelp (
   Print (L"  DpX.efi -version        Show build version\n");
   Print (L"  DpX.efi -sysinfo        UEFI/CPU/SecureBoot information\n");
   Print (L"  DpX.efi -fv-list        Enumerate firmware-visible FV2 volumes\n");
-  Print (L"  DpX.efi -fv-files -fv N List logical FFS files in FV index N\n");
+  Print (L"  DpX.efi -fv-files -fv N List FV2 logical FFS with Sections\n");
+  Print (L"  DpX.efi -fv-detail      FVB physical FFS, sections, nested FV, compression\n");
   Print (L"  DpX.efi -fv-space       Inspect local FVB raw Total/Used/Free (when readable)\n");
   Print (L"  DpX.efi -rom-analyze -input fs0:\\test.fv -fv-space\n");
   Print (L"  DpX.efi -rom-info       Probe FV2/FVB/SPI-NOR/HCI protocol handles\n");
@@ -61,7 +62,7 @@ DpXRunLocalSurvey (
   Status = DpXListFirmwareVolumes (FALSE, FALSE, FALSE, 0);
   if (!EFI_ERROR (Status)) { ++Available; }
   else { Print (L"FV2 enumeration unavailable (%r)\n", Status); }
-  Status = DpXInspectLiveFvbSpaces ();
+  Status = DpXInspectLiveFvbSpaces (FALSE);
   if (EFI_ERROR (Status)) { Print (L"Raw FV physical space unavailable (%r)\n", Status); }
 
   Print (L"\n[4/4] Local SPI/FVB access capabilities\n");
@@ -165,7 +166,14 @@ DpXEntryPoint (
   if (StrCmp (Command, L"-fv-space") == 0) {
     if (Parameters->Argc != 2) { return EFI_INVALID_PARAMETER; }
     DpXListFirmwareVolumes (FALSE, FALSE, FALSE, 0);
-    return DpXInspectLiveFvbSpaces ();
+    return DpXInspectLiveFvbSpaces (FALSE);
+  }
+
+  if (StrCmp (Command, L"-fv-detail") == 0) {
+    if (Parameters->Argc != 2) { return EFI_INVALID_PARAMETER; }
+    Print (L"DpX FV Detail: FV2 logical catalog; FVB physical catalog (when accessible)\n");
+    DpXListFirmwareVolumes (TRUE, FALSE, FALSE, 0);
+    return DpXInspectLiveFvbSpaces (TRUE);
   }
 
   if (StrCmp (Command, L"-fv-files") == 0) {

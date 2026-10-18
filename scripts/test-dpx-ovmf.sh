@@ -20,6 +20,7 @@ echo DPX_SMOKE_BEGIN > fs0:\dpx-result.txt
 DpX.efi -version >> fs0:\dpx-result.txt
 DpX.efi >> fs0:\dpx-result.txt
 DpX.efi -summary >> fs0:\dpx-result.txt
+DpX.efi -fv-detail >> fs0:\dpx-result.txt
 DpX.efi -rom-analyze -input fs0:\VALID.FV -fv-space >> fs0:\dpx-result.txt
 DpX.efi -rom-analyze -input fs0:\BAD.FV -fv-space >> fs0:\dpx-result.txt
 DpX.efi -rom-scan -input fs0:\DUAL.ROM >> fs0:\dpx-result.txt
