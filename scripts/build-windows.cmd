@@ -31,7 +31,7 @@ if not defined IASL_PREFIX (
   for /f "delims=" %%I in ('where iasl.exe') do if not defined IASL_PREFIX for %%F in ("%%I") do set "IASL_PREFIX=%%~dpF"
 )
 
-git -C "%REPO_ROOT%" submodule update --init --recursive
+git -C "%REPO_ROOT%" submodule update --init --recursive edk2
 if errorlevel 1 exit /b 1
 if not exist "%REPO_ROOT%\.venv\Scripts\python.exe" (
   python -m venv "%REPO_ROOT%\.venv"

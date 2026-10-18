@@ -23,10 +23,10 @@ jobs:
           - os: windows-2022
             toolchain: VS2022
     steps:
-      - name: Checkout workspace and pinned EDK2 recursively
+      - name: Checkout workspace (OVMF initializes core EDK2 only)
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
           fetch-depth: 1
           persist-credentials: false
 
