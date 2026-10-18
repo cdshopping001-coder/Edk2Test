@@ -24,8 +24,9 @@ DpXPrintHelp (
   Print (L"  DpX.efi -rom-analyze -input fs0:\\test.fv -fv-space\n");
   Print (L"  DpX.efi -rom-info       Probe FV2/FVB/SPI-NOR/HCI protocol handles\n");
   Print (L"  DpX.efi -rom-scan -input fs0:\\bios.bin  Scan standard independent FVs\n");
+  Print (L"  DpX.efi -perf-parse -input fs0:\\BOOT.FBPT  Parse FPDT boot records\n");
   Print (L"\nM2 partial: single-FV at offset 0 and ROM scan of independent FV headers.\n");
-  Print (L"FPDT, SPI flash dump, N-boot, nested FV parsing: NOT IMPLEMENTED.\n");
+  Print (L"Live FPDT, full DP pairing, SPI dump, N-boot, nested FV: NOT IMPLEMENTED.\n");
   Print (L"No firmware writes, erases, lock changes or automatic resets are performed.\n");
 }
 
@@ -150,6 +151,17 @@ DpXEntryPoint (
       return EFI_INVALID_PARAMETER;
     }
     return DpXAnalyzeRawFirmwareFile (Parameters->Argv[3]);
+  }
+
+  if (StrCmp (Command, L"-perf-parse") == 0) {
+    if ((Parameters->Argc != 4) ||
+        (StrCmp (Parameters->Argv[2], L"-input") != 0))
+    {
+      Print (L"Usage: DpX.efi -perf-parse -input fsX:\\BOOT.FBPT\n");
+      return EFI_INVALID_PARAMETER;
+    }
+
+    return DpXParseFbptFile (Parameters->Argv[3]);
   }
 
   if (StrCmp (Command, L"-rom-info") == 0) {
