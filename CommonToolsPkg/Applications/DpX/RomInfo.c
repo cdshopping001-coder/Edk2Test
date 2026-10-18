@@ -8,6 +8,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <Protocol/FirmwareVolumeBlock.h>
+#include <Pi/PiFirmwareVolume.h>
 #include <Protocol/FirmwareVolume2.h>
 #include <Protocol/SpiHc.h>
 #include <Protocol/SpiNorFlash.h>
