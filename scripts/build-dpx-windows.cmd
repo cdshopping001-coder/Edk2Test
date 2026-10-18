@@ -38,7 +38,7 @@ python -m pip install --disable-pip-version-check -r "%ROOT%\scripts\pip-require
 if errorlevel 1 goto fail
 call edksetup.bat Rebuild
 if errorlevel 1 goto fail
-build -p CommonToolsPkg/CommonToolsPkg.dsc -a X64 -t VS2022 -b %CONFIG% -n 4
+call build -p CommonToolsPkg/CommonToolsPkg.dsc -a X64 -t VS2022 -b %CONFIG% -n 4
 if errorlevel 1 goto fail
 set "OUTPUT="
 for /r "Build\DpX" %%I in (DpX.efi) do if not defined OUTPUT set "OUTPUT=%%~fI"
