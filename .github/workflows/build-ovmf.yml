@@ -3,7 +3,21 @@ name: EDK2 OVMF X64 Build
 on:
   push:
     branches: [main]
+    paths:
+      - "edk2"
+      - "edk2-platforms"
+      - "scripts/build-linux.sh"
+      - "scripts/build-windows.cmd"
+      - "scripts/pip-requirements-ovmf.txt"
+      - ".github/workflows/build-ovmf.yml"
   pull_request:
+    paths:
+      - "edk2"
+      - "edk2-platforms"
+      - "scripts/build-linux.sh"
+      - "scripts/build-windows.cmd"
+      - "scripts/pip-requirements-ovmf.txt"
+      - ".github/workflows/build-ovmf.yml"
   workflow_dispatch:
 
 permissions:
