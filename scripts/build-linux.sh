@@ -23,7 +23,7 @@ cd "$REPO_ROOT/edk2"
 make -C BaseTools -j "$(nproc)"
 export PYTHON_COMMAND="$(command -v python)"
 # shellcheck disable=SC1091
-source ./edksetup.sh
+source ./edksetup.sh --reconfig
 build -p OvmfPkg/OvmfPkgX64.dsc -a X64 -t GCC -b "$CONFIG" -n "$(nproc)" \
   -y "$REPO_ROOT/artifacts/linux-${CONFIG}-build-report.txt" -Y PCD -Y FLASH
 
