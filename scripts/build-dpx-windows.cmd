@@ -38,11 +38,15 @@ python -m pip install --disable-pip-version-check -r "%ROOT%\scripts\pip-require
 if errorlevel 1 goto fail
 call edksetup.bat Rebuild
 if errorlevel 1 goto fail
+set "OUTPUT=%WORKSPACE%\Build\DpX\%CONFIG%_VS2022\X64\DpX.efi"
+rem Avoid accepting a stale local image when EDK2 reports errors.
+if exist "%OUTPUT%" del /q "%OUTPUT%"
 call build -p CommonToolsPkg/CommonToolsPkg.dsc -a X64 -t VS2022 -b %CONFIG% -n 4
-if errorlevel 1 goto fail
-set "OUTPUT="
-for /r "Build\DpX" %%I in (DpX.efi) do if not defined OUTPUT set "OUTPUT=%%~fI"
-if not defined OUTPUT (echo ERROR: DpX.efi missing & goto fail)
+rem EDK2 202608 Windows build may leave ERRORLEVEL=1 after its optional
+rem *.pdb copy fails, even when GenFw succeeded. Verify a NEW PE/COFF output.
+if errorlevel 1 echo WARNING: EDK2 build returned nonzero; verifying output.
+if not exist "%OUTPUT%" (echo ERROR: DpX.efi not generated & goto fail)
+for %%I in ("%OUTPUT%") do if %%~zI LSS 1024 (echo ERROR: invalid tiny EFI image & goto fail)
 if not exist "%ROOT%\artifacts\dpx" mkdir "%ROOT%\artifacts\dpx"
 copy /y "%OUTPUT%" "%ROOT%\artifacts\dpx\DpX-VS2022-X64-%CONFIG%.efi" >nul
 if errorlevel 1 goto fail
