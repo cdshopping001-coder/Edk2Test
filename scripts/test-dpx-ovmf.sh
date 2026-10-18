@@ -26,6 +26,7 @@ DpX.efi -perf-parse -input fs0:\BAD.FBPT >> fs0:\dpx-result.txt
 DpX.efi -perf-parse -input fs0:\SHELL.FBPT >> fs0:\dpx-result.txt
 DpX.efi -perf-fpdt -input fs0:\VALID.FPDT >> fs0:\dpx-result.txt
 DpX.efi -perf-fpdt -input fs0:\BAD.FPDT >> fs0:\dpx-result.txt
+DpX.efi -perf-live >> fs0:\dpx-result.txt
 echo DPX_SMOKE_DONE >> fs0:\dpx-result.txt
 reset -s
 NSH

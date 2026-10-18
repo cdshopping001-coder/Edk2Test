@@ -10,6 +10,7 @@
 #include "DpX.h"
 
 #include <IndustryStandard/Acpi50.h>
+#include <Library/BaseMemoryLib.h>
 #include <Library/UefiLib.h>
 
 #define DPX_MAX_LIVE_FPDT_LENGTH  (1024U * 1024U)
