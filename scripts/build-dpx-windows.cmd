@@ -14,7 +14,7 @@ where nasm.exe >nul 2>&1
 if errorlevel 1 (echo ERROR: nasm.exe missing & exit /b 1)
 where iasl.exe >nul 2>&1
 if errorlevel 1 (echo ERROR: iasl.exe missing & exit /b 1)
-git -C "%ROOT%" submodule update --init --recursive edk2
+git -C "%ROOT%" submodule update --init edk2
 if errorlevel 1 exit /b 1
 if not exist "%ROOT%\.venv\Scripts\python.exe" (
   python -m venv "%ROOT%\.venv"
