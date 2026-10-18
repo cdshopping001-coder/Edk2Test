@@ -5,7 +5,7 @@ import uuid
 
 TOTAL = 4096
 HEADER_LENGTH = 72
-FS2 = uuid.UUID("7a9354d9-0468-444a-81ce-0bf617d890df")
+FS2 = uuid.UUID("8c8ce578-8a3d-4f1c-9935-896185c32dd3")
 FFS = uuid.UUID("11111111-2222-3333-4444-555555555555")
 
 def file_record(file_type, body, inverted, large=False):

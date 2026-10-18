@@ -23,7 +23,8 @@ DpXPrintHelp (
   Print (L"  DpX.efi -fv-space       Live FV2 physical sizes remain N/A\n");
   Print (L"  DpX.efi -rom-analyze -input fs0:\\test.fv -fv-space\n");
   Print (L"  DpX.efi -rom-info       Probe FV2/FVB/SPI-NOR/HCI protocol handles\n");
-  Print (L"\nM2 partial: standalone raw FV at file offset 0 only; complete IFWI scan unsupported.\n");
+  Print (L"  DpX.efi -rom-scan -input fs0:\\bios.bin  Scan standard independent FVs\n");
+  Print (L"\nM2 partial: single-FV at offset 0 and ROM scan of independent FV headers.\n");
   Print (L"FPDT, SPI flash dump, N-boot, nested FV parsing: NOT IMPLEMENTED.\n");
   Print (L"No firmware writes, erases, lock changes or automatic resets are performed.\n");
 }
@@ -127,6 +128,16 @@ DpXEntryPoint (
     }
 
     return DpXListFirmwareVolumes (TRUE, FALSE, TRUE, Index);
+  }
+
+  if (StrCmp (Command, L"-rom-scan") == 0) {
+    if ((Parameters->Argc != 4) ||
+        (StrCmp (Parameters->Argv[2], L"-input") != 0))
+    {
+      Print (L"Usage: DpX.efi -rom-scan -input fsX:\\BIOS.rom\n");
+      return EFI_INVALID_PARAMETER;
+    }
+    return DpXScanRawFirmwareFile (Parameters->Argv[3]);
   }
 
   if (StrCmp (Command, L"-rom-analyze") == 0) {

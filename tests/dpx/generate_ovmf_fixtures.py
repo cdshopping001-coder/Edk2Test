@@ -9,3 +9,6 @@ bad, _ = make_fixture(inverted=True, bad_checksum=True)
 assert len(raw) == 4096 and used == 136
 (out / "VALID.FV").write_bytes(raw)
 (out / "BAD.FV").write_bytes(bad)
+# Two nonoverlapping standard volumes surrounded by opaque ROM bytes.
+dual = bytes([0x5A]) * 4096 + raw + bytes([0xFF]) * 4096 + raw + bytes([0x00]) * 1024
+(out / "DUAL.ROM").write_bytes(dual)
