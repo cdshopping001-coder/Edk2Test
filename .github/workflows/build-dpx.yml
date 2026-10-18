@@ -49,6 +49,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential nasm acpica-tools uuid-dev python3-venv python3-dev swig
 
+      - name: Verify synthetic PI FV fixtures
+        if: runner.os == 'Linux'
+        run: python -m unittest discover -s tests/dpx -p 'test_*.py' -v
+
       - name: Build DpX (Linux GCC)
         if: runner.os == 'Linux'
         shell: bash
