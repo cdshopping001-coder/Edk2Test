@@ -160,3 +160,9 @@ Implemented commands include `-version`, `-help`, `-sysinfo`, `-fv-list`, `-fv-f
 **Not implemented yet:** DP/FPDT performance parser and Boot Time analytics, real SPI/BIOS full dump, multi-boot benchmarking, arbitrary Intel IFWI container decoding, decompression and complete nested FV inspection. Values that cannot be safely determined remain N/A.
 
 See [DpX Plan v1.3](docs/DpX_Development_Plan_v1.3.md), [Multi-FV scope](docs/DpX_M2_MultiFV.md), and [real Shell CI gate](docs/DpX_OVMF_Shell_Test.md).
+
+### DpX DUT-first live workflow (current development baseline)
+
+On the actual test device, boot UEFI Shell and enter **`DpX.efi`** (no parameters). This immediately queries local system information, firmware ACPI FPDT/FBPT when validated, live FV2 inventory and SPI/FVB capabilities. **External ROM or FPDT files are not prerequisites.** Use `-summary` for the same survey; `-perf-live` for live performance details; `-perf-live -pointers` for pointer-only diagnostics.
+
+Physical FV USED/FREE, SPI flash access and full DP event pairing remain N/A or unimplemented where no supported raw backend exists. [DUT-first requirements](docs/DpX_DUT_First_Operation.md). The older offline input commands remain useful for regression and cross-image analysis but are optional.

@@ -4,6 +4,10 @@ Date: 2026-10-19. Status: **DOC UPDATE ONLY**. No DpX.efi implementation, build,
 
 This supersedes [Development Plan v1.2](DpX_Development_Plan_v1.2.md) on architecture and delivery scope. Detailed FPDT, reliability, FV space-accounting, security and acceptance cases from [v1.2](DpX_Development_Plan_v1.2.md) and [FV Spec v1.1](DpX_FV_Analyzer_Spec_v1.1.md) remain in effect unless explicitly superseded here.
 
+## DUT-first execution overrides file-based assumptions
+
+**The actual test platform is the primary data source.** `DpX.efi` without arguments (or `-summary`) must immediately run live FPDT/FBPT, current-system inventory, FV/SPI read-only discovery, without any external ROM/FPDT file input. Offline imports are optional diagnostics. See [DUT-first Operation](DpX_DUT_First_Operation.md) for acceptance criteria.
+
 ## 1. Mandatory product decision
 
 **All requested core functions must execute inside ONE DpX.efi application in UEFI Shell.** No separate Windows/Linux Host parser is required to calculate FV capacity, parse a local ROM image, compare two local ROM files, collect multi-boot measurements, or inspect available raw SPI ROM. A Host GUI may be built separately later, but is optional.
@@ -103,4 +107,4 @@ Do not claim completion from compiling alone. Record Windows/Linux compile, OVMF
 - [TianoCore DP in stable202608](https://github.com/tianocore/edk2/tree/edk2-stable202608/ShellPkg/DynamicCommand/DpDynamicCommand)
 - [PI SPI IO protocol definition](https://github.com/tianocore/edk2/blob/edk2-stable202608/MdePkg/Include/Protocol/SpiIo.h)
 
-**Document only. No source/build/workflow files are changed by this revision.**
+**Historical note:** this document originally described a design; actual code now follows the DUT-first requirement above.
