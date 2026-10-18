@@ -23,7 +23,11 @@ cd "$REPO_ROOT/edk2"
 make -C BaseTools -j "$(nproc)"
 export PYTHON_COMMAND="$(command -v python)"
 # shellcheck disable=SC1091
+# EDK2's upstream shell setup reads optional variables without defaults.
+# Avoid nounset errors while sourcing it; restore strict mode afterward.
+set +u
 source ./edksetup.sh --reconfig
+set -u
 build -p OvmfPkg/OvmfPkgX64.dsc -a X64 -t GCC -b "$CONFIG" -n "$(nproc)" \
   -y "$REPO_ROOT/artifacts/linux-${CONFIG}-build-report.txt" -Y PCD -Y FLASH
 
