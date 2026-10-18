@@ -23,6 +23,8 @@ DpXPrintHelp (
   Print (L"  DpX.efi -fv-list        Enumerate firmware-visible FV2 volumes\n");
   Print (L"  DpX.efi -fv-files -fv N List FV2 logical FFS with Sections\n");
   Print (L"  DpX.efi -fv-detail      FVB physical FFS, sections, nested FV, compression\n");
+  Print (L"  DpX.efi -guid-map       Match all FV2 FFS GUIDs to decoded UI module names\n");
+  Print (L"  DpX.efi -guid-resolve <GUID> Resolve full DP GUID to on-board FFS module\n");
   Print (L"  DpX.efi -fv-space       Inspect local FVB raw Total/Used/Free (when readable)\n");
   Print (L"  DpX.efi -rom-analyze -input fs0:\\test.fv -fv-space\n");
   Print (L"  DpX.efi -rom-info       Probe FV2/FVB/SPI-NOR/HCI protocol handles\n");
@@ -156,6 +158,24 @@ DpXEntryPoint (
 
   if (StrCmp (Command, L"-sysinfo") == 0) {
     return (Parameters->Argc == 2) ? DpXPrintSystemInfo () : EFI_INVALID_PARAMETER;
+  }
+
+  if (StrCmp (Command, L"-guid-map") == 0) {
+    return Parameters->Argc == 2 ?
+           DpXResolveModuleGuid (NULL) : EFI_INVALID_PARAMETER;
+  }
+
+  if (StrCmp (Command, L"-guid-resolve") == 0) {
+    EFI_GUID SearchGuid;
+    if ((Parameters->Argc != 3) ||
+        (StrLen (Parameters->Argv[2]) != 36) ||
+        RETURN_ERROR (StrToGuid (Parameters->Argv[2], &SearchGuid)))
+    {
+      Print (L"Usage: DpX.efi -guid-resolve <xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx>\n");
+      return EFI_INVALID_PARAMETER;
+    }
+
+    return DpXResolveModuleGuid (&SearchGuid);
   }
 
   if (StrCmp (Command, L"-fv-list") == 0) {

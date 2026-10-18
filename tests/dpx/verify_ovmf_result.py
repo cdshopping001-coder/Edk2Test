@@ -5,7 +5,7 @@ import sys
 data = Path(sys.argv[1]).read_bytes()
 output = data.decode("utf-16le", errors="replace") if b"\0" in data else data.decode("utf-8", errors="replace")
 required = (
-    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.10.0",
+    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.11.0",
     "Total=4096", "Used=136", "Free=3960",
     "status=verified_contiguous_layout",
     "reason=INVALID_FV_HEADER_OR_BLOCKMAP", "Used=N/A",
@@ -36,6 +36,12 @@ required = (
     "Accounting=CHILD_ONLY_DO_NOT_ADD_TO_PARENT",
     "DpX DUT survey complete:",
     "No external firmware image was requested or loaded.",
+    "GUID Resolver source=local FV2 FFS GUID",
+    "GUID Resolver FFS scanned=",
+    "Module=N/A reason=NO_VISIBLE_FFS_MATCH",
+    "FunctionName=N/A reason=GUID_ALONE_HAS_NO_RVA_OR_SYMBOL_INFORMATION",
+    "RequestedGUID=93B80004-9FB3-11D4-9A3A-0090273FC14D",
+    "UI=PciBusDxe",
 )
 missing = [s for s in required if s not in output]
 if missing:

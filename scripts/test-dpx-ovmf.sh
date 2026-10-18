@@ -18,6 +18,9 @@ cat >"$TMP/startup.nsh" <<'NSH'
 fs0:
 echo DPX_SMOKE_BEGIN > fs0:\dpx-result.txt
 DpX.efi -version >> fs0:\dpx-result.txt
+DpX.efi -guid-map >> fs0:\dpx-result.txt
+DpX.efi -guid-resolve 00000000-0000-0000-0000-000000000001 >> fs0:\dpx-result.txt
+DpX.efi -guid-resolve 93B80004-9FB3-11D4-9A3A-0090273FC14D >> fs0:\dpx-result.txt
 DpX.efi >> fs0:\dpx-result.txt
 DpX.efi -summary >> fs0:\dpx-result.txt
 DpX.efi -fv-detail >> fs0:\dpx-result.txt
