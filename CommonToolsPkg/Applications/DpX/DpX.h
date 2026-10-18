@@ -1,5 +1,5 @@
 /** @file
-  DpX v0.11 Shell application contract.
+  DpX v0.12 Shell application contract.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 #ifndef DPX_H_
@@ -7,7 +7,7 @@
 
 #include <Uefi.h>
 
-#define DPX_VERSION         L"0.11.0"
+#define DPX_VERSION         L"0.12.0"
 #define DPX_MAX_FV_HANDLES  1024
 #define DPX_MAX_FFS_RECORDS 32768
 #define DPX_MAX_KEY_SIZE    4096
@@ -38,6 +38,20 @@ DpXInspectLiveFvbSpaces (
 EFI_STATUS
 DpXResolveModuleGuid (
   IN CONST EFI_GUID *OnlyGuid OPTIONAL
+  );
+
+EFI_STATUS
+DpXLookupModuleUi (
+  IN CONST EFI_GUID *Guid,
+  OUT CHAR16 *Ui,
+  IN UINTN Capacity,
+  OUT UINTN *Matches
+  );
+
+EFI_STATUS
+DpXAnalyzeExtendedFbpt (
+  IN CONST UINT8 *Data,
+  IN UINTN Available
   );
 
 EFI_STATUS

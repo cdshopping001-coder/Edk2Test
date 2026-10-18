@@ -5,7 +5,7 @@ import sys
 data = Path(sys.argv[1]).read_bytes()
 output = data.decode("utf-16le", errors="replace") if b"\0" in data else data.decode("utf-8", errors="replace")
 required = (
-    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.11.0",
+    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.12.0",
     "Total=4096", "Used=136", "Free=3960",
     "status=verified_contiguous_layout",
     "reason=INVALID_FV_HEADER_OR_BLOCKMAP", "Used=N/A",
@@ -25,10 +25,14 @@ required = (
     "Live FPDT discovery source=firmware-published ACPI XSDT/RSDT",
     "Live FPDT status=",
     "LIVE DUT survey | no ROM/FPDT input needed",
-    "[1/4] Current system information",
-    "[2/4] Local ACPI FPDT and Basic Boot performance",
-    "[3/4] Local firmware volume information",
-    "[4/4] Local SPI/FVB access capabilities",
+    "[1/6] System and BIOS identification",
+    "[2/6] Live FPDT + FBPT + extended DP event intervals",
+    "[3/6] FV2 catalog and physical FVB space / deep sections",
+    "[4/6] GUID to module UI name catalog (visible FV2 only)",
+    "[5/6] Local SPI / FVB read-only capability discovery",
+    "[6/6] Integrated report status",
+    "ONE-COMMAND DUT FULL REPORT",
+    "DpX report complete:",
     "Live read-only FVB space accounting:",
     "NestedFV FFSCount=2 PAD=1",
     "Decompress=UEFI_STANDARD decodedBytes=4100; parent physical usage UNCHANGED",

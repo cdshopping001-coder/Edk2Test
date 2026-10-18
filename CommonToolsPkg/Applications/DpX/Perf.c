@@ -10,6 +10,7 @@
 #include "DpX.h"
 
 #include <IndustryStandard/Acpi50.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <Protocol/Shell.h>
@@ -196,6 +197,25 @@ ParseFbpt (
 
   Print (L"FBPT status=verified Records=%u BasicBootRecords=%u OtherRecords=%u\n",
          Count, BasicCount, OtherCount);
+  // Validate extended event decoder against real UEFI Shell fixture files.
+  // Keep guest allocations bounded independently of the 64 MiB file limit.
+  if (Table.Length <= 2 * 1024 * 1024) {
+    UINT8 *Raw;
+    Raw = AllocatePool (Table.Length);
+    if (Raw != NULL) {
+      Status = FpdtReadExact (Shell, File, 0, Raw, Table.Length);
+      if (!EFI_ERROR (Status)) {
+        Status = DpXAnalyzeExtendedFbpt (Raw, Table.Length);
+        if (EFI_ERROR (Status)) {
+          Print (L"FBPT extended event records partial (%r)\n", Status);
+        }
+      }
+
+      FreePool (Raw);
+    }
+  } else {
+    Print (L"FBPT ExtendedEvents=N/A reason=OFFLINE_MEMORY_CAP_2MIB\n");
+  }
   return EFI_SUCCESS;
 }
 
