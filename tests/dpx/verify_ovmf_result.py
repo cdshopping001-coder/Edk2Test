@@ -5,7 +5,7 @@ import sys
 data = Path(sys.argv[1]).read_bytes()
 output = data.decode("utf-16le", errors="replace") if b"\0" in data else data.decode("utf-8", errors="replace")
 required = (
-    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.8.0",
+    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.9.0",
     "Total=4096", "Used=136", "Free=3960",
     "status=verified_contiguous_layout",
     "reason=INVALID_FV_HEADER_OR_BLOCKMAP", "Used=N/A",
@@ -29,6 +29,7 @@ required = (
     "[2/4] Local ACPI FPDT and Basic Boot performance",
     "[3/4] Local firmware volume information",
     "[4/4] Local SPI/FVB access capabilities",
+    "Live read-only FVB space accounting:",
     "DpX DUT survey complete:",
     "No external firmware image was requested or loaded.",
 )
