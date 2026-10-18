@@ -1,0 +1,10 @@
+## @file
+# Independent UEFI Shell tooling package. Does not modify upstream edk2.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = CommonToolsPkg
+  PACKAGE_GUID                   = 6be1d4e4-85b8-4df6-9b7b-e258cad9724c
+  PACKAGE_VERSION                = 0.1
+
