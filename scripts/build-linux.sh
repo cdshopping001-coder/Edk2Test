@@ -12,7 +12,7 @@ for tool in git make gcc g++ nasm iasl python3; do
   fi
 done
 
-git -C "$REPO_ROOT" submodule update --init --recursive
+git -C "$REPO_ROOT" submodule update --init --recursive edk2
 python3 -m venv "$REPO_ROOT/.venv"
 # shellcheck disable=SC1091
 source "$REPO_ROOT/.venv/bin/activate"
