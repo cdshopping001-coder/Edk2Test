@@ -24,12 +24,14 @@ DpX.efi -rom-scan -input fs0:\DUAL.ROM >> fs0:\dpx-result.txt
 DpX.efi -perf-parse -input fs0:\VALID.FBPT >> fs0:\dpx-result.txt
 DpX.efi -perf-parse -input fs0:\BAD.FBPT >> fs0:\dpx-result.txt
 DpX.efi -perf-parse -input fs0:\SHELL.FBPT >> fs0:\dpx-result.txt
+DpX.efi -perf-fpdt -input fs0:\VALID.FPDT >> fs0:\dpx-result.txt
+DpX.efi -perf-fpdt -input fs0:\BAD.FPDT >> fs0:\dpx-result.txt
 echo DPX_SMOKE_DONE >> fs0:\dpx-result.txt
 reset -s
 NSH
 dd if=/dev/zero of="$TMP/disk.img" bs=1M count=24 status=none
 mkfs.vfat -F 16 -n DPXTEST "$TMP/disk.img" >/dev/null
-for file in startup.nsh DpX.efi VALID.FV BAD.FV DUAL.ROM VALID.FBPT BAD.FBPT SHELL.FBPT; do mcopy -i "$TMP/disk.img" "$TMP/$file" "::/$file"; done
+for file in startup.nsh DpX.efi VALID.FV BAD.FV DUAL.ROM VALID.FBPT BAD.FBPT SHELL.FBPT VALID.FPDT BAD.FPDT; do mcopy -i "$TMP/disk.img" "$TMP/$file" "::/$file"; done
 cp "$VARS" "$TMP/vars.fd"
 set +e
 timeout --kill-after=8s 110s qemu-system-x86_64 \
