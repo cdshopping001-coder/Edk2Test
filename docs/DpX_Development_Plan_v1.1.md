@@ -1,7 +1,7 @@
 # DpX.efi 開發與交付計畫（Development & Delivery Plan）
 
-> 文件版本：1.1（新增 FV/FFS/Section Analyzer）｜建立日：2026-10-19  
-> 專案：`cdshopping001-coder/Edk2Test`｜需求追蹤：[Issue #3](https://github.com/cdshopping001-coder/Edk2Test/issues/3)  
+> 文件版本：1.1（新增 FV/FFS/Section Analyzer；取代 v1.0 作為後續開發基線）｜建立日：2026-10-19  
+> 專案：`cdshopping001-coder/Edk2Test`｜需求追蹤：[Issue #3](https://github.com/cdshopping001-coder/Edk2Test/issues/3)、[FV Issue #5](https://github.com/cdshopping001-coder/Edk2Test/issues/5)  
 > 狀態：**開發規格與驗收計畫；非已完成的程式功能**
 
 ## 1. 產品定位與交付目標

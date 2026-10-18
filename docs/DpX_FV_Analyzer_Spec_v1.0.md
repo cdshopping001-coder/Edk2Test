@@ -1,6 +1,6 @@
 # DpX Firmware Volume (FV/FFS/Section) Analyzer — Detailed Feature Specification v1.0
 
-> Date 2026-10-19 | Parent: [DpX Development & Delivery Plan v1.1](DpX_Development_Plan_v1.1.md) | Tracking: GitHub issue #3 and FV subtask
+> Date 2026-10-19 | Parent: [DpX Development & Delivery Plan v1.1](DpX_Development_Plan_v1.1.md) | Tracking: [Issue #5](https://github.com/cdshopping001-coder/Edk2Test/issues/5), parent [Issue #3](https://github.com/cdshopping001-coder/Edk2Test/issues/3)
 > Scope: **read-only EDK2 runtime FV inspection** + **optional offline ROM parsing in a separate host process**. This document is a design specification; no FV parser, application or ROM analyzer is yet implemented.
 
 ## 1. Objective and supported data sources
