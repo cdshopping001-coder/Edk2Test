@@ -55,3 +55,4 @@
   gEfiGlobalVariableGuid                        ## CONSUMES
   gEfiFirmwareFileSystem2Guid                   ## CONSUMES
   gEfiFirmwareFileSystem3Guid                   ## CONSUMES
+  gEdkiiFpdtExtendedFirmwarePerformanceGuid      ## CONSUMES
