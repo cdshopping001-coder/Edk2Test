@@ -147,7 +147,7 @@ EDK II uses its upstream licenses; the submodule does not change upstream attrib
 The pinned `edk2-stable202608` requirements include `pylibfdt==1.7.2.post1`, which has had a known SWIG compatibility issue on some environments. OVMF X64 does not require `pylibfdt`. For this baseline only, the build wrappers therefore install `scripts/pip-requirements-ovmf.txt`, which preserves the other upstream pins but excludes `pylibfdt`. Projects requiring FIT/DTB support should install and validate an appropriate `pylibfdt` independently.
 
 
-## DpX.efi — UEFI Shell Firmware Analyzer (v0.10.0, in development)
+## DpX.efi — UEFI Shell Firmware Analyzer (v0.15.0, in development)
 
 DpX is a standalone, unsigned X64 UEFI Shell application in `CommonToolsPkg/Applications/DpX`. The pinned upstream EDK2 submodule is not modified.
 
@@ -165,8 +165,28 @@ See [DpX Plan v1.3](docs/DpX_Development_Plan_v1.3.md), [Multi-FV scope](docs/Dp
 
 On the actual test device, boot UEFI Shell and enter **`DpX.efi`** (no parameters). This immediately queries local system information, firmware ACPI FPDT/FBPT when validated, live FV2 inventory and SPI/FVB capabilities. **External ROM or FPDT files are not prerequisites.** Use `-summary` for the same survey; `-perf-live` for live performance details; `-perf-live -pointers` for pointer-only diagnostics.
 
-Physical FV USED/FREE, SPI flash access and full DP event pairing remain N/A or unimplemented where no supported raw backend exists. [DUT-first requirements](docs/DpX_DUT_First_Operation.md). The older offline input commands remain useful for regression and cross-image analysis but are optional.
+Physical FV USED/FREE are calculated for verified read-only FVB raw regions; inaccessible FV regions remain N/A. Extended FPDT Start/End pairs are decoded and time-contained in an event tree, but unmatched/proprietary performance records and platform SPI access remain unsupported where no validated backend exists. [DUT-first requirements](docs/DpX_DUT_First_Operation.md). The older offline input commands remain useful for regression and cross-image analysis but are optional.
 
 ### DpX 0.10.0 deep FV and decompression
 
 Run `DpX.efi -fv-detail` on the DUT, without exporting ROM. It displays FV format/name GUID when present, each FFS GUID, type, stored byte offset and size (where raw FVB is available), Sections, EFI standard compression decoded size and nested FV/FFS lists. **Physical Used/Free do not change after decompression; nested counts are separate, not added to parent FFS count.** Unknown GUID-defined codecs report unsupported. See [Deep FV details](docs/DpX_FV_Deep_Sections.md), [OVMF golden compression tests](docs/DpX_FV_Deep_Integration_Tests.md), [PR #18](https://github.com/cdshopping001-coder/Edk2Test/pull/18).
+
+### DpX 0.15.0 — Five-stage DUT pipeline (default)
+
+**Primary field command:**
+
+```text
+Shell> DpX.efi
+```
+
+No ROM, MAP, FPDT, FBPT or input filename is required.
+
+1. **Raw DP records:** discover current-boot ACPI FPDT or supported EDK2 fallback and capture verified FBPT in bounded transient RAM.
+2. **FFS inventory:** enumerate all firmware-visible FV2/FFS, and readable FVB FFS/sections including bounded UEFI-standard decompression and nested FV; do not double count logical child sizes.
+3. **GUID → module:** full 128-bit FFS GUID mapping to UI names with an on-device cache; ambiguous/unavailable identities remain N/A.
+4. **Performance tree:** pair Extended FPDT Start/End by type, APIC, GUID and token, resolve Module names, print inclusive durations with an ASCII time-containment tree. Time nesting **does not prove** a caller/callee relationship, and matching MAP/PDB/RVA is necessary for verified function names.
+5. **FV summary:** reuse stage-two physical-FVB verified metrics: Total/Used/Free, FFS, PAD and deleted-but-unreclaimed count. Nested decoded sizes are **not** added to physical Used bytes; inaccessible FVs remain N/A.
+
+The command is read-only: no SPI or NVRAM writes and no automatic reset. Validation includes GCC and VS2022 X64 CI, QEMU/OVMF Shell integration, synthetic nested Callback test (120 ms containing a 40 ms event), and actual OVMF FV capacity accounting. **Real Citadel/RVP hardware acceptance has not been performed.**
+
+See [Five-stage report specification](docs/DpX_Five_Stage_Tree_v0.15.md), [PR #23](https://github.com/cdshopping001-coder/Edk2Test/pull/23) and [the verified CI run](https://github.com/cdshopping001-coder/Edk2Test/actions/runs/39183985413).
