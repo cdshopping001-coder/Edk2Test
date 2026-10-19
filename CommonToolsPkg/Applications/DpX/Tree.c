@@ -45,5 +45,5 @@ DpXTreePath (
   for (I = 0; I < Level; ++I) {
     Print ((AncestorLast & (1U << I)) != 0 ? L"    " : L"|   ");
   }
-  Print (IsLast ? L"\`-- " : L"|-- ");
+  Print (IsLast ? L"`-- " : L"|-- ");
 }
