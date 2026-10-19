@@ -16,6 +16,9 @@
 #define DPX_EVENT_MAX_OPEN  512
 #define DPX_EVENT_TOP       10
 #define DPX_EVENT_MAX_COUNT 131072
+#define DPX_TREE_INTERVAL_LIMIT 4096
+#define DPX_TREE_PRINT_LIMIT 2048
+#define DPX_TREE_LEVEL_LIMIT 10
 
 typedef struct {
   BOOLEAN  Occupied;
@@ -32,6 +35,11 @@ typedef struct {
   UINT64        Duration;
   DPX_EXT_EVENT Start;
 } DPX_EXT_TOP;
+
+typedef struct {
+  DPX_EXT_EVENT Start;
+  UINT64        EndNs;
+} DPX_INTERVAL;
 
 STATIC
 UINT16
@@ -174,6 +182,140 @@ SameEventKey (
          ExpectedEnd (Start->ProgressId) == End->ProgressId;
 }
 
+
+/**
+  Arrange matched timing intervals by CPU, then start timestamp, and put
+  longer containing spans before shorter ones with identical start times.
+**/
+STATIC
+INTN
+EFIAPI
+CompareIntervals (
+  IN CONST VOID *Left,
+  IN CONST VOID *Right
+  )
+{
+  CONST DPX_INTERVAL *A;
+  CONST DPX_INTERVAL *B;
+  A = (CONST DPX_INTERVAL *)Left;
+  B = (CONST DPX_INTERVAL *)Right;
+  if (A->Start.ApicId < B->Start.ApicId) { return -1; }
+  if (A->Start.ApicId > B->Start.ApicId) { return 1; }
+  if (A->Start.Timestamp < B->Start.Timestamp) { return -1; }
+  if (A->Start.Timestamp > B->Start.Timestamp) { return 1; }
+  if (A->EndNs > B->EndNs) { return -1; }
+  if (A->EndNs < B->EndNs) { return 1; }
+  return 0;
+}
+
+/**
+  This is a timestamp containment tree, NOT an inferred caller/callee tree.
+  FPDT records lack caller addresses and cross-CPU synchronization guarantees.
+**/
+STATIC
+VOID
+PrintIntervalTree (
+  IN OUT DPX_INTERVAL *Pairs,
+  IN UINTN            Count,
+  IN BOOLEAN          Truncated
+  )
+{
+  DPX_INTERVAL Swap;
+  UINTN Stack[DPX_TREE_LEVEL_LIMIT];
+  UINTN StackCount;
+  UINTN Index;
+  UINTN Printed;
+  UINTN Depth;
+  UINT32 Cpu;
+  BOOLEAN Overlap;
+  UINT64 ParentEnd;
+  UINTN Matches;
+  CHAR16 Ui[128];
+
+  DpXTreePrefix (0, FALSE);
+  Print (L"PerformanceTree source=FPDT_RAW_RECORDS hierarchy=TIME_CONTAINMENT_NOT_CALL_STACK pairs=%u\n",
+         (UINT32)Count);
+
+  if (Count == 0) {
+    DpXTreePrefix (1, TRUE);
+    Print (L"No paired performance intervals\n");
+    return;
+  }
+
+  QuickSort (Pairs, Count, sizeof (Pairs[0]), CompareIntervals, &Swap);
+  StackCount = 0;
+  Cpu = MAX_UINT32;
+  Printed = 0;
+
+  for (Index = 0; Index < Count && Printed < DPX_TREE_PRINT_LIMIT; ++Index) {
+    if (Pairs[Index].Start.ApicId != Cpu) {
+      Cpu = Pairs[Index].Start.ApicId;
+      StackCount = 0;
+      DpXTreePrefix (1, FALSE);
+      Print (L"APIC=%u\n", Cpu);
+    }
+
+    // A node is a child ONLY when its entire interval is within its
+    // parent, on the same APIC. Crossed/overlapping spans stay siblings.
+    Overlap = FALSE;
+    while (StackCount > 0) {
+      ParentEnd = Pairs[Stack[StackCount - 1]].EndNs;
+      if (Pairs[Index].Start.Timestamp < ParentEnd &&
+          Pairs[Index].EndNs <= ParentEnd)
+      {
+        break;
+      }
+
+      if (Pairs[Index].Start.Timestamp < ParentEnd &&
+          Pairs[Index].EndNs > ParentEnd)
+      {
+        Overlap = TRUE;
+      }
+
+      --StackCount;
+    }
+
+    Depth = StackCount + 2;
+    ZeroMem (Ui, sizeof (Ui));
+    Matches = 0;
+    if (Printed < 256) {
+      DpXLookupModuleUi (
+        &Pairs[Index].Start.ModuleGuid,
+        Ui, sizeof (Ui) / sizeof (Ui[0]), &Matches
+        );
+    }
+
+    DpXTreePrefix (Depth, FALSE);
+    Print (L"Module=%s StartNs=%lu EndNs=%lu DurationNs=%lu Progress=0x%04x\n",
+           Matches == 1 && Ui[0] != 0 ? Ui : L"N/A",
+           Pairs[Index].Start.Timestamp, Pairs[Index].EndNs,
+           Pairs[Index].EndNs - Pairs[Index].Start.Timestamp,
+           Pairs[Index].Start.ProgressId);
+
+    DpXTreePrefix (Depth + 1, TRUE);
+    Print (L"ModuleGuid=%g EventGuid=%g Token=%a APIC=%u confidence=%s%s\n",
+           &Pairs[Index].Start.ModuleGuid, &Pairs[Index].Start.EventGuid,
+           Pairs[Index].Start.Token, Cpu,
+           Matches == 1 ? L"FFS_GUID_MATCH" : L"NOT_RESOLVED",
+           Overlap ? L" OVERLAP_NOT_NESTED" : L"");
+
+    if (StackCount < DPX_TREE_LEVEL_LIMIT) {
+      Stack[StackCount++] = Index;
+    }
+
+    ++Printed;
+  }
+
+  if (Printed < Count || Truncated) {
+    DpXTreePrefix (1, TRUE);
+    Print (L"PerformanceTree status=PARTIAL printed=%u stored=%u reason=RECORD_OR_OUTPUT_CAP\n",
+           (UINT32)Printed, (UINT32)Count);
+  }
+
+  DpXTreePrefix (1, TRUE);
+  Print (L"TreeSemantics=timestamp-containment; no caller/callee or exclusive-time assertion\n");
+}
+
 EFI_STATUS
 DpXAnalyzeExtendedFbpt (
   IN CONST UINT8 *Data,
@@ -185,6 +327,9 @@ DpXAnalyzeExtendedFbpt (
   DPX_EXT_EVENT *Open;
   DPX_EXT_EVENT Event;
   DPX_EXT_TOP Top[DPX_EVENT_TOP];
+  DPX_INTERVAL *Intervals;
+  UINTN IntervalCount;
+  BOOLEAN IntervalTruncated;
   UINTN At;
   UINTN N;
   UINTN J;
@@ -215,6 +360,14 @@ DpXAnalyzeExtendedFbpt (
     return EFI_OUT_OF_RESOURCES;
   }
 
+  Intervals = AllocateZeroPool (DPX_TREE_INTERVAL_LIMIT * sizeof (*Intervals));
+  if (Intervals == NULL) {
+    FreePool (Open);
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  IntervalCount = 0;
+  IntervalTruncated = FALSE;
   ZeroMem (Top, sizeof (Top));
   At = sizeof (Table);
   Records = 0;
@@ -277,6 +430,14 @@ DpXAnalyzeExtendedFbpt (
             } else {
               Duration = Event.Timestamp - Open[N].Timestamp;
               ++Paired;
+              if (IntervalCount < DPX_TREE_INTERVAL_LIMIT) {
+                Intervals[IntervalCount].Start = Open[N];
+                Intervals[IntervalCount].EndNs = Event.Timestamp;
+                ++IntervalCount;
+              } else {
+                IntervalTruncated = TRUE;
+              }
+
               for (J = 0; J < DPX_EVENT_TOP; ++J) {
                 if (Duration > Top[J].Duration) {
                   UINTN K;
@@ -343,7 +504,9 @@ DpXAnalyzeExtendedFbpt (
            Top[J].Start.Token[0] != 0 ? L"UNVERIFIED_TOKEN" : L"N/A");
   }
 
+  PrintIntervalTree (Intervals, IntervalCount, IntervalTruncated);
   Print (L"  TimingSemantics=inclusive intervals; no call tree or exclusive attribution inferred\n");
+  FreePool (Intervals);
   FreePool (Open);
   return Status;
 }
