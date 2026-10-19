@@ -253,7 +253,8 @@ EFI_STATUS
 InspectOneFvb (
   IN EFI_FIRMWARE_VOLUME_BLOCK2_PROTOCOL *Fvb,
   IN UINTN                               Index,
-  IN BOOLEAN                             Details
+  IN BOOLEAN                             Details,
+  IN BOOLEAN                             IsLast
   )
 {
   EFI_STATUS Status;
@@ -278,7 +279,8 @@ InspectOneFvb (
   UINT8 State;
   UINT8 *FileData;
 
-  Print (L"  LiveFVB[%u]: ", (UINT32)Index);
+  DpXTreePrefix (0, IsLast);
+  Print (L"LiveFVB[%u]: ", (UINT32)Index);
   Attr = 0;
   Status = Fvb->GetAttributes (Fvb, &Attr);
   if (EFI_ERROR (Status) || (Attr & EFI_FVB2_READ_STATUS) == 0) {
@@ -444,7 +446,8 @@ InspectOneFvb (
     }
 
     if (Details) {
-      Print (L"    FFS[%u] GUID=%g Type=0x%02x Offset=0x%lx (FV-relative) PhysicalSize=%lu AlignedBytes=%lu State=%s\n",
+      DpXTreePrefix (1, FALSE);
+      Print (L"FFS[%u] GUID=%g Type=0x%02x Offset=0x%lx (FV-relative) PhysicalSize=%lu AlignedBytes=%lu State=%s\n",
              Count, &Ffs.Name, Ffs.Type, Offset, Size, Aligned,
              State == EFI_FILE_DELETED ? L"DELETED_UNRECLAIMED" :
              Ffs.Type == EFI_FV_FILETYPE_FFS_PAD ? L"PAD_ALLOCATED" : L"VALID");
@@ -493,7 +496,8 @@ InspectOneFvb (
 
   Free = Fv.FvLength - Offset;
   Percentage = Offset * 10000 / Fv.FvLength;
-  Print (L"    Used=%lu Free=%lu Usage=%lu.%02u%% FFS=%u PAD=%u\n",
+  DpXTreePrefix (1, TRUE);
+  Print (L"FV Space Used=%lu Free=%lu Usage=%lu.%02u%% FFS=%u PAD=%u\n",
          Offset, Free, Percentage / 100, (UINT32)(Percentage % 100), Count, Pad);
   Print (L"    DeletedUnreclaimed=%u (included in Used)\n", Deleted);
   Print (L"    Status=VERIFIED_RAW_FVB no file-input needed\n");
@@ -543,7 +547,7 @@ DpXInspectLiveFvbSpaces (
       continue;
     }
 
-    ItemStatus = InspectOneFvb (Fvb, Index, Details);
+    ItemStatus = InspectOneFvb (Fvb, Index, Details, Index + 1 == Count);
     if (!EFI_ERROR (ItemStatus)) {
       ++Verified;
     }
