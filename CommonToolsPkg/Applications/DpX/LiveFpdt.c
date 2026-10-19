@@ -10,6 +10,7 @@
 #include "DpX.h"
 
 #include <IndustryStandard/Acpi50.h>
+#include <Guid/ExtendedFirmwarePerformance.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/UefiLib.h>
 
@@ -34,13 +35,33 @@ DpXInspectLiveFpdt (
   UINT64                                           BootPhysicalAddress;
   UINTN                                            I;
   UINT8                                            Checksum;
+  VOID                                             *FallbackTable;
+  EFI_STATUS                                       LookupStatus;
 
   Print (L"Live FPDT discovery source=firmware-published ACPI XSDT/RSDT\n");
   Common = EfiLocateFirstAcpiTable (
              EFI_ACPI_5_0_FIRMWARE_PERFORMANCE_DATA_TABLE_SIGNATURE
              );
   if (Common == NULL) {
-    Print (L"Live FPDT status=unavailable reason=NOT_PRESENT_IN_ACPI\n");
+    // Match upstream Shell Dp: EDK2 may expose raw BootPerformanceTable
+    // directly through a system-configuration GUID even without ACPI FPDT.
+    // No pointer is followed until DpXReadLiveFbpt checks the memory map.
+    FallbackTable = NULL;
+    LookupStatus = EfiGetSystemConfigurationTable (
+                     &gEdkiiFpdtExtendedFirmwarePerformanceGuid,
+                     &FallbackTable
+                     );
+    if (!EFI_ERROR (LookupStatus) && FallbackTable != NULL) {
+      Print (L"Live DP RawRecords source=EDKII_FPDT_EXTENDED_CONFIGURATION_TABLE\n");
+      if (!ReadBoot) {
+        Print (L"  FBPT=N/A reason=LIVE_READ_NOT_REQUESTED\n");
+        return EFI_SUCCESS;
+      }
+
+      return DpXReadLiveFbpt ((UINT64)(UINTN)FallbackTable);
+    }
+
+    Print (L"Live FPDT status=unavailable reason=NOT_PRESENT_IN_ACPI_OR_EDKII_CONFIG\n");
     Print (L"  FBPT=N/A reason=NO_FPDT_TABLE\n");
     return EFI_NOT_FOUND;
   }

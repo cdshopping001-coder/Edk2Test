@@ -22,6 +22,46 @@
 #define DPX_FBPT_MEMORY_MAP_SPARE   (16U * 1024U)
 #define DPX_FBPT_RECORD_LIMIT       131072
 
+STATIC BOOLEAN mDpXDeferEventAnalysis = FALSE;
+STATIC UINT8   *mDpXRawRecords = NULL;
+STATIC UINTN   mDpXRawRecordLength = 0;
+
+VOID
+DpXDeferEventAnalysis (
+  IN BOOLEAN Enable
+  )
+{
+  if (mDpXRawRecords != NULL) {
+    FreePool (mDpXRawRecords);
+    mDpXRawRecords = NULL;
+  }
+  mDpXRawRecordLength = 0;
+  mDpXDeferEventAnalysis = Enable;
+}
+
+EFI_STATUS
+DpXPrintDeferredPerformanceTree (
+  VOID
+  )
+{
+  EFI_STATUS Status;
+  if (mDpXRawRecords == NULL || mDpXRawRecordLength == 0) {
+    Print (L"PerformanceTree=N/A reason=NO_RAW_RECORDS_CAPTURED_THIS_BOOT\n");
+    mDpXDeferEventAnalysis = FALSE;
+    return EFI_NOT_FOUND;
+  }
+
+  Print (L"Performance raw record buffer=%u bytes source=THIS_BOOT\n",
+         (UINT32)mDpXRawRecordLength);
+  Status = DpXAnalyzeExtendedFbpt (mDpXRawRecords, mDpXRawRecordLength);
+  FreePool (mDpXRawRecords);
+  mDpXRawRecords = NULL;
+  mDpXRawRecordLength = 0;
+  mDpXDeferEventAnalysis = FALSE;
+  return Status;
+}
+
+
 STATIC
 EFI_STATUS
 GetBootMemoryMap (
@@ -278,10 +318,28 @@ DpXReadLiveFbpt (
   } else {
     Print (L"Live FBPT status=verified Records=%u BasicBootRecords=%u\n",
            Count, BasicCount);
-    Status = DpXAnalyzeExtendedFbpt (Data, Header.Length);
-    if (EFI_ERROR (Status)) {
-      Print (L"  ExtendedEvents=PARTIAL (%r); BasicBoot remains valid\n", Status);
+    if (mDpXDeferEventAnalysis) {
+      if (mDpXRawRecords != NULL) {
+        FreePool (mDpXRawRecords);
+        mDpXRawRecords = NULL;
+      }
+
+      mDpXRawRecordLength = 0;
+      mDpXRawRecords = AllocateCopyPool (Header.Length, Data);
+      if (mDpXRawRecords != NULL) {
+        mDpXRawRecordLength = Header.Length;
+        Print (L"  DP RawRecords captured=%u bytes source=LIVE_FBPT\n",
+               Header.Length);
+      } else {
+        Print (L"  DP RawRecords=N/A reason=COPY_ALLOCATION_FAILED\n");
+      }
       Status = EFI_SUCCESS;
+    } else {
+      Status = DpXAnalyzeExtendedFbpt (Data, Header.Length);
+      if (EFI_ERROR (Status)) {
+        Print (L"  ExtendedEvents=PARTIAL (%r); BasicBoot remains valid\n", Status);
+        Status = EFI_SUCCESS;
+      }
     }
   }
 

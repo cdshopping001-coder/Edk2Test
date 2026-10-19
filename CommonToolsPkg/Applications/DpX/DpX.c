@@ -15,7 +15,7 @@ DpXPrintHelp (
   )
 {
   Print (L"DpX %s - UEFI firmware performance and inventory tools\n", DPX_VERSION);
-  Print (L"  DpX.efi                 One-command LIVE complete DUT report (no inputs)\n");
+  Print (L"  DpX.efi                 Five-stage LIVE DUT pipeline (no inputs)\n");
   Print (L"  DpX.efi -summary        Same local DUT survey\n");
   Print (L"  DpX.efi -help           Show help\n");
   Print (L"  DpX.efi -version        Show build version\n");
@@ -46,65 +46,68 @@ DpXRunLocalSurvey (
   VOID
   )
 {
-  EFI_STATUS  Status;
-  UINTN       Available;
-  UINTN       Partial;
+  EFI_STATUS Status;
+  UINTN Available;
+  UINTN Partial;
 
   Available = 0;
   Partial = 0;
-  Print (L"DpX %s | ONE-COMMAND DUT FULL REPORT | no input files\n", DPX_VERSION);
-  Print (L"DataSource=THIS_BOOT; ROM/FPDT import NOT required\n");
-  Print (L"TreeView=ASCII hierarchy (|-- and `--); causal callback tree NOT inferred\n");
+  Print (L"DpX %s | FIVE-STAGE LIVE DUT REPORT | no input files\n", DPX_VERSION);
+  Print (L"Only firmware-visible records/volumes are analyzed; no writes or reset\n");
+  Print (L"TreeSemantics=timestamp-containment, not verified call hierarchy\n");
 
-  Print (L"\n");
-  DpXTreePrefix (0, FALSE);
-  Print (L"[1/6] System and BIOS identification\n");
-  Status = DpXPrintSystemInfo ();
-  if (!EFI_ERROR (Status)) { ++Available; }
-  else { ++Partial; Print (L"  SystemInfo=N/A (%r)\n", Status); }
-
-  Print (L"\n");
-  DpXTreePrefix (0, FALSE);
-  Print (L"[2/6] Live FPDT + FBPT + extended DP event intervals\n");
+  Print (L"\n[1/5] Collect DP raw records (ACPI FPDT or EDKII fallback)\n");
+  DpXDeferEventAnalysis (TRUE);
   Status = DpXInspectLiveFpdt (TRUE);
-  if (!EFI_ERROR (Status)) { ++Available; }
-  else { ++Partial; Print (L"  Performance=N/A (%r), OS loader not yet reached in Shell\n", Status); }
+  if (EFI_ERROR (Status)) {
+    ++Partial;
+    Print (L"  RawRecords=N/A (%r); no invented DP measurements\n", Status);
+  } else {
+    ++Available;
+  }
 
-  Print (L"\n");
-  DpXTreePrefix (0, FALSE);
-  Print (L"[3/6] FV2 catalog and physical FVB space / deep sections\n");
+  Print (L"\n[2/5] Enumerate all firmware-visible FFS and decoded sections\n");
   Status = DpXListFirmwareVolumes (TRUE, FALSE, FALSE, 0);
-  if (!EFI_ERROR (Status)) { ++Available; }
-  else { ++Partial; Print (L"  LogicalFv=N/A (%r)\n", Status); }
-  Status = DpXInspectLiveFvbSpaces (TRUE);
-  if (EFI_ERROR (Status)) { ++Partial; Print (L"  PhysicalFv=N/A (%r)\n", Status); }
+  if (EFI_ERROR (Status)) {
+    ++Partial;
+    Print (L"  FFSInventory=PARTIAL/UNAVAILABLE (%r)\n", Status);
+  } else {
+    ++Available;
+  }
 
-  Print (L"\n");
-  DpXTreePrefix (0, FALSE);
-  Print (L"[4/6] GUID to module UI name catalog (visible FV2 only)\n");
+  Print (L"\n[3/5] Resolve GUID to module names from FFS UI sections\n");
   Status = DpXResolveModuleGuid (NULL);
-  if (!EFI_ERROR (Status)) { ++Available; }
-  else { ++Partial; Print (L"  GuidCatalog=N/A (%r)\n", Status); }
+  if (EFI_ERROR (Status)) {
+    ++Partial;
+    Print (L"  ModuleMapping=PARTIAL/UNAVAILABLE (%r)\n", Status);
+  } else {
+    ++Available;
+  }
 
-  Print (L"\n");
-  DpXTreePrefix (0, FALSE);
-  Print (L"[5/6] Local SPI / FVB read-only capability discovery\n");
-  Status = DpXPrintRomInfo ();
-  if (!EFI_ERROR (Status)) { ++Available; }
-  else { ++Partial; Print (L"  RawRomBackend=N/A (%r)\n", Status); }
+  Print (L"\n[4/5] Performance records temporal tree (Start/End pairs)\n");
+  Status = DpXPrintDeferredPerformanceTree ();
+  if (EFI_ERROR (Status)) {
+    ++Partial;
+    Print (L"  PerformanceTree=PARTIAL/UNAVAILABLE (%r)\n", Status);
+  } else {
+    ++Available;
+  }
 
-  Print (L"\n");
-  DpXTreePrefix (0, TRUE);
-  Print (L"[6/6] Integrated report status\n");
-  Print (L"DpX report complete: categories=%u/5 partial=%u\n",
+  Print (L"\n[5/5] FV summary (physical Total/Used/Free via FVB)\n");
+  Status = DpXInspectLiveFvbSpaces (FALSE);
+  if (EFI_ERROR (Status)) {
+    ++Partial;
+    Print (L"  FvCapacity=N/A (%r); FV2 logical bytes are not physical free space\n",
+           Status);
+  } else {
+    ++Available;
+  }
+
+  Print (L"\nDpX report complete: stagesAvailable=%u/5 partial=%u\n",
          (UINT32)Available, (UINT32)Partial);
-  Print (L"EventModule=FFS_GUID_MATCH only; FunctionName=FPDT_TOKEN_IF_PRESENT (unverified)\n");
-  Print (L"Nested FV counts are CHILD_ONLY; physical capacity remains parent-stored bytes\n");
-  Print (L"No external firmware image was requested or loaded.\n");
-  Print (L"OS-only timestamps/SPI-restricted regions=N/A; no resets, writes or NVRAM changes.\n");
-
-  // A partially available machine is still a valid report. Detailed fields
-  // always retain the source, unavailable reason and confidence.
+  Print (L"Source=THIS_BOOT; No external firmware image was requested or loaded.\n");
+  Print (L"FunctionSymbol=N/A without matching MAP/PDB/RVA; tokens are labels\n");
+  Print (L"Nested FV=logical child; never double counted in parent physical FV\n");
   return Available == 0 ? EFI_NOT_FOUND : EFI_SUCCESS;
 }
 
