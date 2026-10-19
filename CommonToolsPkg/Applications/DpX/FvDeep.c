@@ -178,6 +178,51 @@ DpXSectionName (
   }
 }
 
+/**
+  Decode the UI section as a bounded UTF-16 label within its actual FFS.
+  An oversized/unterminated section remains explicitly partial; never treat
+  a free-text UI name as a verified source-level function symbol.
+**/
+STATIC
+VOID
+DpXPrintUiSection (
+  IN CONST UINT8 *Raw,
+  IN UINTN Bytes,
+  IN UINTN TreeLevel
+  )
+{
+  CHAR16 Text[129];
+  CHAR16 Value;
+  UINTN Index;
+  BOOLEAN Terminated;
+
+  ZeroMem (Text, sizeof (Text));
+  Terminated = FALSE;
+  if ((Raw == NULL) || ((Bytes & 1) != 0) || Bytes == 0) {
+    DpXTreePrefix (TreeLevel, TRUE);
+    Print (L"UI Name=N/A reason=INVALID_UTF16_SECTION\n");
+    return;
+  }
+
+  for (Index = 0; Index < 128 && Index * 2 + 1 < Bytes; ++Index) {
+    CopyMem (&Value, Raw + Index * 2, sizeof (Value));
+    if (Value == 0) {
+      Terminated = TRUE;
+      break;
+    }
+
+    Text[Index] = (Value < 0x20 || Value == 0x7F) ? L'?' : Value;
+  }
+
+  DpXTreePrefix (TreeLevel, TRUE);
+  if (Index == 0 || !Terminated) {
+    Print (L"UI Name=N/A reason=EMPTY_OR_UNTERMINATED_UI_SECTION\n");
+    return;
+  }
+
+  Print (L"UI Name=%s source=FFS_UI_SECTION\n", Text);
+}
+
 STATIC
 EFI_STATUS
 DpXInspectSectionsInternal (
@@ -534,6 +579,10 @@ DpXInspectSectionsInternal (
       } else {
         Print (L"      Decompress=UNSUPPORTED_CODEC; not counted as a new FFS\n");
       }
+    } else if (Kind == EFI_SECTION_USER_INTERFACE) {
+      DpXPrintUiSection (
+        Bytes + PayloadStart, SectionSize - HdrBytes, TreeLevel + 1
+        );
     } else if (Kind == EFI_SECTION_FIRMWARE_VOLUME_IMAGE) {
       DpXTreePrefix (TreeLevel + 1, FALSE);
       Print (L"NestedFV candidate size=%u\n",
