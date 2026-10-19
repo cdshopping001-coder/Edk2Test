@@ -29,6 +29,7 @@ required = (
     "|-- [1/6] System and BIOS identification",
     "|-- FFS[",
     "|-- Section[",
+    "UI Name=PciBusDxe source=FFS_UI_SECTION",
     "|-- NestedFV depth=",
     "|-- Top[1] DurationNs=120000000",
     "[1/6] System and BIOS identification",
