@@ -5,7 +5,7 @@ import sys
 data = Path(sys.argv[1]).read_bytes()
 output = data.decode("utf-16le", errors="replace") if b"\0" in data else data.decode("utf-8", errors="replace")
 required = (
-    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.14.0",
+    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.15.0",
     "Total=4096", "Used=136", "Free=3960",
     "status=verified_contiguous_layout",
     "reason=INVALID_FV_HEADER_OR_BLOCKMAP", "Used=N/A",
@@ -37,6 +37,11 @@ required = (
     "[5/5] FV summary",
     "PerformanceTree source=FPDT_RAW_RECORDS",
     "DpX report complete:",
+    "Pipeline=RawDP -> FFS/Decompress -> GUID Map -> Performance Tree -> FV Summary",
+    "FV VerifiedSubtotal",
+    "DPX Extended FPDT: Records=6 Events=4 Pairs=2",
+    "Token=PciProbe",
+    "DurationNs=40000000",
     "Live read-only FVB space accounting:",
     "NestedFV FFSCount=2 PAD=1",
     "Decompress=UEFI_STANDARD decodedBytes=4100; parent physical usage UNCHANGED",

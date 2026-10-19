@@ -16,6 +16,78 @@
 #include <Pi/PiFirmwareVolume.h>
 #include <Protocol/FirmwareVolumeBlock.h>
 
+typedef struct {
+  BOOLEAN Verified;
+  UINT64 Total;
+  UINT64 Used;
+  UINT64 Free;
+  UINT32 Files;
+  UINT32 Pad;
+  UINT32 Deleted;
+} DPX_VOLUME_SUMMARY;
+
+STATIC DPX_VOLUME_SUMMARY mVolumeRows[256];
+STATIC UINTN              mVolumeCount;
+STATIC BOOLEAN            mVolumeReporting;
+
+VOID
+DpXBeginFvSummary (VOID)
+{
+  ZeroMem (mVolumeRows, sizeof (mVolumeRows));
+  mVolumeCount = 0;
+  mVolumeReporting = TRUE;
+}
+
+VOID
+DpXPrintFvSummary (VOID)
+{
+  UINTN  Index;
+  UINTN  Verified;
+  UINT64 Total;
+  UINT64 Used;
+  UINT64 Free;
+  UINT32 Files;
+  UINT32 Pads;
+  UINT32 Deleted;
+
+  Verified = 0;
+  Total = 0;
+  Used = 0;
+  Free = 0;
+  Files = 0;
+  Pads = 0;
+  Deleted = 0;
+  Print (L"FV SUMMARY | Total/Used/Free are physical FV bytes only\n");
+  for (Index = 0; Index < mVolumeCount; ++Index) {
+    DpXTreePrefix (1, Index + 1 == mVolumeCount);
+    if (!mVolumeRows[Index].Verified) {
+      Print (L"FV[%u] Total=N/A Used=N/A Free=N/A reason=RAW_FVB_NOT_VERIFIED\n",
+             (UINT32)Index);
+      continue;
+    }
+    Print (L"FV[%u] Total=%lu Used=%lu Free=%lu FFS=%u PAD=%u Deleted=%u\n",
+           (UINT32)Index,
+           mVolumeRows[Index].Total, mVolumeRows[Index].Used,
+           mVolumeRows[Index].Free, mVolumeRows[Index].Files,
+           mVolumeRows[Index].Pad, mVolumeRows[Index].Deleted);
+    Total += mVolumeRows[Index].Total;
+    Used += mVolumeRows[Index].Used;
+    Free += mVolumeRows[Index].Free;
+    Files += mVolumeRows[Index].Files;
+    Pads += mVolumeRows[Index].Pad;
+    Deleted += mVolumeRows[Index].Deleted;
+    ++Verified;
+  }
+  if (Verified == 0) {
+    Print (L"FV VerifiedSubtotal=N/A reason=NO_VERIFIED_RAW_FVB\n");
+  } else {
+    Print (L"FV VerifiedSubtotal volumes=%u Total=%lu Used=%lu Free=%lu FFS=%u PAD=%u Deleted=%u\n",
+           (UINT32)Verified, Total, Used, Free, Files, Pads, Deleted);
+  }
+  Print (L"FV Summary note: excludes unverified FVs and nested FV logical duplicates\n");
+  mVolumeReporting = FALSE;
+}
+
 #define DPX_LIVE_FV_LIMIT       (128ULL * 1024 * 1024)
 #define DPX_LIVE_HEADER_LIMIT   (64 * 1024)
 #define DPX_LIVE_FVB_HANDLES    256
@@ -495,6 +567,15 @@ InspectOneFvb (
   }
 
   Free = Fv.FvLength - Offset;
+  if (mVolumeReporting && Index < 256) {
+    mVolumeRows[Index].Verified = TRUE;
+    mVolumeRows[Index].Total = Fv.FvLength;
+    mVolumeRows[Index].Used = Offset;
+    mVolumeRows[Index].Free = Free;
+    mVolumeRows[Index].Files = Count;
+    mVolumeRows[Index].Pad = Pad;
+    mVolumeRows[Index].Deleted = Deleted;
+  }
   Percentage = Offset * 10000 / Fv.FvLength;
   DpXTreePrefix (1, TRUE);
   Print (L"FV Space Used=%lu Free=%lu Usage=%lu.%02u%% FFS=%u PAD=%u\n",
@@ -534,6 +615,9 @@ DpXInspectLiveFvbSpaces (
     return EFI_OUT_OF_RESOURCES;
   }
 
+  if (mVolumeReporting) {
+    mVolumeCount = Count;
+  }
   Print (L"Live read-only FVB space accounting: handles=%u\n", (UINT32)Count);
   Verified = 0;
   for (Index = 0; Index < Count; ++Index) {

@@ -9,14 +9,14 @@ EVENT_GUID = uuid.UUID("aaaaaaa0-0000-0000-0000-000000000001")
 TOKEN = b"PciEnumerator\x00"
 
 
-def event(progress, time_ns):
+def event(progress, time_ns, token=TOKEN):
     # EDK2 FPDT_DUAL_GUID_STRING_EVENT_RECORD: type, length, rev,
     # ProgressId, ApicId, timestamp, Guid1(module), Guid2(trigger), String.
-    size = 50 + len(TOKEN)
+    size = 50 + len(token)
     raw = struct.pack(
         "<HBBHIQ16s16s", 0x1012, size, 1, progress, 0, time_ns,
         PCI_BUS_DXE.bytes_le, EVENT_GUID.bytes_le,
-    ) + TOKEN
+    ) + token
     assert len(raw) == size
     return raw
 
@@ -31,7 +31,26 @@ def make_event_fbpt():
     return b"FBPT" + struct.pack("<I", len(base) + len(extra)) + base[8:] + extra
 
 
+
+
+def make_nested_event_fbpt():
+    base = make_fbpt()
+    child_token = b"PciProbe\\x00".replace(b"\\x00", b"\x00")
+    records = (
+        event(0x20, 1_000_000_000) +
+        event(0x20, 1_020_000_000, child_token) +
+        event(0x21, 1_060_000_000, child_token) +
+        event(0x21, 1_120_000_000)
+    )
+    return b"FBPT" + struct.pack("<I", len(base) + len(records)) + base[8:] + records
+
 class EventFixtures(unittest.TestCase):
+    def test_nested_intervals(self):
+        buf = make_nested_event_fbpt()
+        self.assertEqual(struct.unpack_from("<I", buf, 4)[0], len(buf))
+        self.assertEqual(buf.count(PCI_BUS_DXE.bytes_le), 4)
+        self.assertEqual(buf.count(b"PciProbe"), 2)
+
     def test_dual_guid_callback_pair(self):
         buf = make_event_fbpt()
         self.assertEqual(struct.unpack_from("<I", buf, 4)[0], len(buf))
