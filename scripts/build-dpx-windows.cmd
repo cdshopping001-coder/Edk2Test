@@ -16,7 +16,7 @@ where iasl.exe >nul 2>&1
 if errorlevel 1 (echo ERROR: iasl.exe missing & exit /b 1)
 git -C "%ROOT%" submodule update --init edk2
 if errorlevel 1 exit /b 1
-git -C "%ROOT%\edk2" submodule update --init BaseTools/Source/C/BrotliCompress/brotli MdePkg/Library/MipiSysTLib/mipisyst
+git -C "%ROOT%\edk2" submodule update --init BaseTools/Source/C/BrotliCompress/brotli MdePkg/Library/MipiSysTLib/mipisyst MdeModulePkg/Library/BrotliCustomDecompressLib/brotli
 if errorlevel 1 exit /b 1
 if not exist "%ROOT%\.venv\Scripts\python.exe" (
   python -m venv "%ROOT%\.venv"

@@ -8,7 +8,7 @@ for tool in git gcc make nasm python3; do
   command -v "$tool" >/dev/null || { echo "Missing $tool" >&2; exit 1; }
 done
 git -C "$ROOT" submodule update --init edk2
-git -C "$ROOT/edk2" submodule update --init BaseTools/Source/C/BrotliCompress/brotli MdePkg/Library/MipiSysTLib/mipisyst
+git -C "$ROOT/edk2" submodule update --init BaseTools/Source/C/BrotliCompress/brotli MdePkg/Library/MipiSysTLib/mipisyst MdeModulePkg/Library/BrotliCustomDecompressLib/brotli
 if [[ ! -f "$ROOT/.venv/bin/activate" ]]; then python3 -m venv "$ROOT/.venv"; fi
 source "$ROOT/.venv/bin/activate"
 python -m pip install --disable-pip-version-check -r "$ROOT/scripts/pip-requirements-ovmf.txt"
