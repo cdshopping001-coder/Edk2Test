@@ -31,6 +31,70 @@ STATIC DPX_MODULE_MAP_ROW *mDpXModuleIndex = NULL;
 STATIC UINTN mDpXModuleIndexCount = 0;
 STATIC BOOLEAN mDpXModuleIndexComplete = FALSE;
 
+/**
+  Separate capture catalog: preserve *each* enumerated FFS record, even when
+  multiple volumes contain the same GUID. This is data acquisition, not a
+  presentation or unique module-name resolution decision.
+**/
+typedef struct {
+  EFI_GUID Guid;
+  UINT32 FvIndex;
+  UINT8 Type;
+  UINT64 LogicalSize;
+  BOOLEAN UiValid;
+  CHAR16 Ui[DPX_UI_CHAR_LIMIT + 1];
+} DPX_CAPTURED_FFS;
+
+STATIC DPX_CAPTURED_FFS *mDpXCapturedFfs = NULL;
+STATIC UINTN mDpXCapturedFfsCount = 0;
+STATIC UINTN mDpXUiUnavailableCount = 0;
+STATIC BOOLEAN mDpXCapturedFfsComplete = FALSE;
+
+VOID
+DpXPrintFfsCaptureCoverage (
+  VOID
+  )
+{
+  Print (L"FFS capture: records=%u UI_missing=%u integrity=%s source=FV2; physical-hidden/nested-only regions NOT IMPLIED\n",
+         (UINT32)mDpXCapturedFfsCount,
+         (UINT32)mDpXUiUnavailableCount,
+         mDpXCapturedFfsComplete ? L"COMPLETE_WITHIN_VISIBLE_FV2" : L"PARTIAL");
+}
+
+STATIC
+VOID
+DpXCaptureFfs (
+  IN CONST EFI_GUID *Guid,
+  IN UINTN FvIndex,
+  IN EFI_FV_FILETYPE Type,
+  IN UINTN Size,
+  IN CONST CHAR16 *Ui
+  )
+{
+  DPX_CAPTURED_FFS *Record;
+  if (mDpXCapturedFfs == NULL || Guid == NULL) {
+    mDpXCapturedFfsComplete = FALSE;
+    return;
+  }
+  if (mDpXCapturedFfsCount >= DPX_GUID_MAP_MAX_ROWS) {
+    mDpXCapturedFfsComplete = FALSE;
+    return;
+  }
+
+  Record = &mDpXCapturedFfs[mDpXCapturedFfsCount++];
+  Record->Guid = *Guid;
+  Record->FvIndex = (UINT32)FvIndex;
+  Record->Type = (UINT8)Type;
+  Record->LogicalSize = Size;
+  Record->UiValid = Ui != NULL;
+  if (Ui != NULL) {
+    CopyMem (Record->Ui, Ui, sizeof (Record->Ui));
+  } else {
+    ++mDpXUiUnavailableCount;
+  }
+}
+
+
 VOID
 DpXReleaseModuleIndex (
   VOID
@@ -42,6 +106,13 @@ DpXReleaseModuleIndex (
   mDpXModuleIndex = NULL;
   mDpXModuleIndexCount = 0;
   mDpXModuleIndexComplete = FALSE;
+  if (mDpXCapturedFfs != NULL) {
+    FreePool (mDpXCapturedFfs);
+  }
+  mDpXCapturedFfs = NULL;
+  mDpXCapturedFfsCount = 0;
+  mDpXUiUnavailableCount = 0;
+  mDpXCapturedFfsComplete = FALSE;
 }
 
 STATIC
@@ -181,6 +252,10 @@ DpXResolveModuleGuid (
     } else {
       mDpXModuleIndexComplete = TRUE;
     }
+    mDpXCapturedFfs = AllocateZeroPool (
+                        DPX_GUID_MAP_MAX_ROWS * sizeof (DPX_CAPTURED_FFS)
+                        );
+    mDpXCapturedFfsComplete = (mDpXCapturedFfs != NULL);
   }
 
   Status = gBS->LocateHandleBuffer (
@@ -211,11 +286,13 @@ DpXResolveModuleGuid (
                         (VOID **)&Fv
                         );
     if (EFI_ERROR (QueryStatus) || Fv == NULL) {
+      mDpXCapturedFfsComplete = FALSE;
       continue;
     }
 
     if (Fv->KeySize == 0 || Fv->KeySize > DPX_MAX_KEY_SIZE) {
       Print (L"  FV[%u] skipped: unsafe FV2 KeySize\n", (UINT32)Index);
+      mDpXCapturedFfsComplete = FALSE;
       continue;
     }
 
@@ -242,6 +319,7 @@ DpXResolveModuleGuid (
         Print (L"  FV[%u]: FFS enumeration partial (%r)\n",
                (UINT32)Index, QueryStatus);
         mDpXModuleIndexComplete = FALSE;
+        mDpXCapturedFfsComplete = FALSE;
         break;
       }
 
@@ -253,6 +331,7 @@ DpXResolveModuleGuid (
       if (Matched >= OutputLimit) {
         Truncated = TRUE;
         mDpXModuleIndexComplete = FALSE;
+        mDpXCapturedFfsComplete = FALSE;
         break;
       }
 
@@ -264,6 +343,8 @@ DpXResolveModuleGuid (
       if (OnlyGuid == NULL) {
         DpXIndexFfs (&FfsGuid,
                      QueryStatus == EFI_SUCCESS ? UiName : NULL);
+        DpXCaptureFfs (&FfsGuid, Index, Type, LogicalSize,
+                       QueryStatus == EFI_SUCCESS ? UiName : NULL);
       }
 
       Print (L"  FV[%u] FFS=%g Type=0x%02x LogicalSize=%lu UI=%s\n",
@@ -282,6 +363,7 @@ DpXResolveModuleGuid (
     if (FileIndex == DPX_MAX_FFS_RECORDS) {
       Print (L"  FV[%u] FFS bounded; mapping may be incomplete\n", (UINT32)Index);
       mDpXModuleIndexComplete = FALSE;
+      mDpXCapturedFfsComplete = FALSE;
     }
   }
 
@@ -292,6 +374,7 @@ DpXResolveModuleGuid (
     Print (L"  GUID module index unique=%u status=%s\n",
            (UINT32)mDpXModuleIndexCount,
            mDpXModuleIndexComplete ? L"COMPLETE_VISIBLE_FV2" : L"PARTIAL_FALLBACK_SCAN");
+    DpXPrintFfsCaptureCoverage ();
   }
   if (Truncated) {
     Print (L"GUID Resolver status=partial reason=OUTPUT_ROW_LIMIT\n");
