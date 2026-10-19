@@ -55,6 +55,7 @@ DpXRunLocalSurvey (
   Print (L"DpX %s | FIVE-STAGE LIVE DUT REPORT | no input files\n", DPX_VERSION);
   Print (L"Only firmware-visible records/volumes are analyzed; no writes or reset\n");
   Print (L"TreeSemantics=timestamp-containment, not verified call hierarchy\n");
+  Print (L"Pipeline=RawDP -> FFS/Decompress -> GUID Map -> Performance Tree -> FV Summary\n");
 
   Print (L"\n[1/5] Collect DP raw records (ACPI FPDT or EDKII fallback)\n");
   DpXDeferEventAnalysis (TRUE);
@@ -67,12 +68,20 @@ DpXRunLocalSurvey (
   }
 
   Print (L"\n[2/5] Enumerate all firmware-visible FFS and decoded sections\n");
+  DpXBeginFvSummary ();
   Status = DpXListFirmwareVolumes (TRUE, FALSE, FALSE, 0);
   if (EFI_ERROR (Status)) {
     ++Partial;
     Print (L"  FFSInventory=PARTIAL/UNAVAILABLE (%r)\n", Status);
   } else {
     ++Available;
+  }
+
+  Print (L"  Physical FFS hierarchy (read-only FVB, if supported):\n");
+  Status = DpXInspectLiveFvbSpaces (TRUE);
+  if (EFI_ERROR (Status)) {
+    ++Partial;
+    Print (L"  PhysicalFFS=N/A (%r); FV2 may still list logical FFS\n", Status);
   }
 
   Print (L"\n[3/5] Resolve GUID to module names from FFS UI sections\n");
@@ -94,14 +103,8 @@ DpXRunLocalSurvey (
   }
 
   Print (L"\n[5/5] FV summary (physical Total/Used/Free via FVB)\n");
-  Status = DpXInspectLiveFvbSpaces (FALSE);
-  if (EFI_ERROR (Status)) {
-    ++Partial;
-    Print (L"  FvCapacity=N/A (%r); FV2 logical bytes are not physical free space\n",
-           Status);
-  } else {
-    ++Available;
-  }
+  DpXPrintFvSummary ();
+  ++Available;
 
   Print (L"\nDpX report complete: stagesAvailable=%u/5 partial=%u\n",
          (UINT32)Available, (UINT32)Partial);

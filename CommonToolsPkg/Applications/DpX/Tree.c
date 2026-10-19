@@ -25,3 +25,25 @@ DpXTreePrefix (
   }
   Print (IsLast ? L"`-- " : L"|-- ");
 }
+
+
+/**
+  Emit a multi-level console tree. A set bit at level I means its ancestor
+  branch ended, so subsequent prefixes use spaces instead of spurious pipes.
+**/
+VOID
+DpXTreePath (
+  IN UINTN   Level,
+  IN UINT32  AncestorLast,
+  IN BOOLEAN IsLast
+  )
+{
+  UINTN I;
+  if (Level > 12) {
+    Level = 12;
+  }
+  for (I = 0; I < Level; ++I) {
+    Print ((AncestorLast & (1U << I)) != 0 ? L"    " : L"|   ");
+  }
+  Print (IsLast ? L"`-- " : L"|-- ");
+}

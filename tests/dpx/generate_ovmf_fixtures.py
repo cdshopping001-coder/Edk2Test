@@ -5,7 +5,7 @@ import sys
 from test_raw_fv_fixtures import make_fixture
 from test_fbpt_fixtures import make_fbpt
 from test_fpdt_acpi_fixtures import make_fpdt
-from test_event_fbpt_fixtures import make_event_fbpt
+from test_event_fbpt_fixtures import make_event_fbpt, make_nested_event_fbpt
 from deep_fv_fixtures import make_nested_plain_fv, make_nested_efi_compressed_fv
 out = Path(sys.argv[1])
 raw, used = make_fixture(inverted=True)
@@ -31,3 +31,5 @@ compressed_nested, _ = make_nested_efi_compressed_fv(root)
 (out / "UEFICOMP.FV").write_bytes(compressed_nested)
 
 (out / 'EVENT.FBPT').write_bytes(make_event_fbpt())
+
+(out / 'NESTEVT.FBPT').write_bytes(make_nested_event_fbpt())

@@ -285,7 +285,7 @@ PrintIntervalTree (
         );
     }
 
-    DpXTreePrefix (Depth, FALSE);
+    DpXTreePath (Depth, 0, FALSE);
     Print (L"Module=%s StartNs=%lu EndNs=%lu DurationNs=%lu Progress=0x%04x\n",
            Matches == 1 && Ui[0] != 0 ? Ui : L"N/A",
            Pairs[Index].Start.Timestamp, Pairs[Index].EndNs,
