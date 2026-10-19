@@ -7,7 +7,7 @@
   BASE_NAME                      = DpX
   FILE_GUID                      = a2f70c4c-0ce3-4e89-85a0-103e2cf46c8b
   MODULE_TYPE                    = UEFI_APPLICATION
-  VERSION_STRING                 = 0.12.0
+  VERSION_STRING                 = 0.13.0
   ENTRY_POINT                    = DpXEntryPoint
 
 [Sources]
@@ -23,6 +23,7 @@
   LiveFbpt.c
   LiveFv.c
   FvDeep.c
+  Tree.c
   GuidResolve.c
   PerfEvents.c
 
