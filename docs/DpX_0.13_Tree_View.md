@@ -41,3 +41,5 @@ This is a **tree of verified *record relationships***, not a call stack. FPDT pa
 ## Test gates
 
 OVMF must execute the actual DpX.efi with zero args, `-fv-detail`, synthetic nested/compressed FV fixtures and Callback Start/End FBPT fixture. Assertions require tree branches around FFS, Section, NestedFV and Extended FPDT Top[1] (120,000,000ns). Existing size, decode and event-semantic tests remain unchanged.
+
+FFS UI sections are now shown *inside* their owning FFS subtrees as a bounded decoded `UI Name=... source=FFS_UI_SECTION` node. A UI name is module metadata, not a function symbol. Unknown private/GUID decompression does not invent nested nodes.
