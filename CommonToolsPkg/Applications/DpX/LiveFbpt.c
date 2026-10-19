@@ -278,7 +278,11 @@ DpXReadLiveFbpt (
   } else {
     Print (L"Live FBPT status=verified Records=%u BasicBootRecords=%u\n",
            Count, BasicCount);
-    Status = EFI_SUCCESS;
+    Status = DpXAnalyzeExtendedFbpt (Data, Header.Length);
+    if (EFI_ERROR (Status)) {
+      Print (L"  ExtendedEvents=PARTIAL (%r); BasicBoot remains valid\n", Status);
+      Status = EFI_SUCCESS;
+    }
   }
 
 Done:

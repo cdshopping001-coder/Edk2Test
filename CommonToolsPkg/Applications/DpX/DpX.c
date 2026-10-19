@@ -15,7 +15,7 @@ DpXPrintHelp (
   )
 {
   Print (L"DpX %s - UEFI firmware performance and inventory tools\n", DPX_VERSION);
-  Print (L"  DpX.efi                 Inspect this DUT directly (no input files)\n");
+  Print (L"  DpX.efi                 One-command LIVE complete DUT report (no inputs)\n");
   Print (L"  DpX.efi -summary        Same local DUT survey\n");
   Print (L"  DpX.efi -help           Show help\n");
   Print (L"  DpX.efi -version        Show build version\n");
@@ -34,7 +34,8 @@ DpXPrintHelp (
   Print (L"  DpX.efi -perf-live      Read this machine ACPI FPDT and safe FBPT\n");
   Print (L"  DpX.efi -perf-live -pointers  ACPI pointer records only\n");
   Print (L"\nM2 partial: single-FV at offset 0 and ROM scan of independent FV headers.\n");
-  Print (L"Deep DP event pairing, platform SPI dump, N-boot: NOT IMPLEMENTED.\n");
+  Print (L"Only logged FPDT event pairs are timed; MAP/PDB function resolution and platform SPI read are unavailable.\n");
+  Print (L"Guided/private compression, Windows-only events and multi-boot sessions remain conditional.\n");
   Print (L"File import is an OPTIONAL offline validation workflow.\n");
   Print (L"No firmware writes, erases, lock changes or automatic resets are performed.\n");
 }
@@ -47,35 +48,51 @@ DpXRunLocalSurvey (
 {
   EFI_STATUS  Status;
   UINTN       Available;
+  UINTN       Partial;
 
   Available = 0;
-  Print (L"DpX %s | LIVE DUT survey | no ROM/FPDT input needed\n", DPX_VERSION);
-  Print (L"\n[1/4] Current system information\n");
+  Partial = 0;
+  Print (L"DpX %s | ONE-COMMAND DUT FULL REPORT | no input files\n", DPX_VERSION);
+  Print (L"DataSource=THIS_BOOT; ROM/FPDT import NOT required\n");
+
+  Print (L"\n[1/6] System and BIOS identification\n");
   Status = DpXPrintSystemInfo ();
   if (!EFI_ERROR (Status)) { ++Available; }
-  else { Print (L"SystemInfo unavailable (%r)\n", Status); }
+  else { ++Partial; Print (L"  SystemInfo=N/A (%r)\n", Status); }
 
-  Print (L"\n[2/4] Local ACPI FPDT and Basic Boot performance\n");
+  Print (L"\n[2/6] Live FPDT + FBPT + extended DP event intervals\n");
   Status = DpXInspectLiveFpdt (TRUE);
   if (!EFI_ERROR (Status)) { ++Available; }
-  else { Print (L"FPDT/FBPT unavailable (%r); no inferred boot time\n", Status); }
+  else { ++Partial; Print (L"  Performance=N/A (%r), OS loader not yet reached in Shell\n", Status); }
 
-  Print (L"\n[3/4] Local firmware volume information\n");
-  Status = DpXListFirmwareVolumes (FALSE, FALSE, FALSE, 0);
+  Print (L"\n[3/6] FV2 catalog and physical FVB space / deep sections\n");
+  Status = DpXListFirmwareVolumes (TRUE, FALSE, FALSE, 0);
   if (!EFI_ERROR (Status)) { ++Available; }
-  else { Print (L"FV2 enumeration unavailable (%r)\n", Status); }
-  Status = DpXInspectLiveFvbSpaces (FALSE);
-  if (EFI_ERROR (Status)) { Print (L"Raw FV physical space unavailable (%r)\n", Status); }
+  else { ++Partial; Print (L"  LogicalFv=N/A (%r)\n", Status); }
+  Status = DpXInspectLiveFvbSpaces (TRUE);
+  if (EFI_ERROR (Status)) { ++Partial; Print (L"  PhysicalFv=N/A (%r)\n", Status); }
 
-  Print (L"\n[4/4] Local SPI/FVB access capabilities\n");
+  Print (L"\n[4/6] GUID to module UI name catalog (visible FV2 only)\n");
+  Status = DpXResolveModuleGuid (NULL);
+  if (!EFI_ERROR (Status)) { ++Available; }
+  else { ++Partial; Print (L"  GuidCatalog=N/A (%r)\n", Status); }
+
+  Print (L"\n[5/6] Local SPI / FVB read-only capability discovery\n");
   Status = DpXPrintRomInfo ();
   if (!EFI_ERROR (Status)) { ++Available; }
-  else { Print (L"ROM capability inventory unavailable (%r)\n", Status); }
+  else { ++Partial; Print (L"  RawRomBackend=N/A (%r)\n", Status); }
 
-  Print (L"\nDpX DUT survey complete: categories=%u/4\n", (UINT32)Available);
+  Print (L"\n[6/6] Integrated report status\n");
+  Print (L"DpX report complete: categories=%u/5 partial=%u\n",
+         (UINT32)Available, (UINT32)Partial);
+  Print (L"EventModule=FFS_GUID_MATCH only; FunctionName=FPDT_TOKEN_IF_PRESENT (unverified)\n");
+  Print (L"Nested FV counts are CHILD_ONLY; physical capacity remains parent-stored bytes\n");
   Print (L"No external firmware image was requested or loaded.\n");
-  Print (L"Unavailable/unsupported readings remain N/A.\n");
-  return Available != 0 ? EFI_SUCCESS : EFI_NOT_FOUND;
+  Print (L"OS-only timestamps/SPI-restricted regions=N/A; no resets, writes or NVRAM changes.\n");
+
+  // A partially available machine is still a valid report. Detailed fields
+  // always retain the source, unavailable reason and confidence.
+  return Available == 0 ? EFI_NOT_FOUND : EFI_SUCCESS;
 }
 
 STATIC

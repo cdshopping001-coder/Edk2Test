@@ -231,3 +231,100 @@ DpXResolveModuleGuid (
 
   return Status;
 }
+
+/**
+  Resolve an FPDT module GUID quietly for top-N performance rows.
+  Returns an exact FFS-GUID match count; never treats event/protocol GUIDs as
+  a module identity without an actual FFS match.
+**/
+EFI_STATUS
+DpXLookupModuleUi (
+  IN CONST EFI_GUID *Guid,
+  OUT CHAR16        *Ui,
+  IN UINTN          Capacity,
+  OUT UINTN         *Matches
+  )
+{
+  EFI_STATUS Status;
+  EFI_STATUS Step;
+  EFI_HANDLE *Handles;
+  EFI_FIRMWARE_VOLUME2_PROTOCOL *Fv;
+  VOID *Key;
+  UINTN HandleCount;
+  UINTN Index;
+  UINTN FileIndex;
+  EFI_GUID FfsGuid;
+  EFI_FV_FILETYPE FileType;
+  EFI_FV_FILE_ATTRIBUTES Attr;
+  UINTN FileSize;
+  CHAR16 FoundUi[DPX_UI_CHAR_LIMIT + 1];
+
+  if (Guid == NULL || Ui == NULL || Matches == NULL ||
+      Capacity < 2 || Capacity > DPX_UI_CHAR_LIMIT + 1) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  *Matches = 0;
+  ZeroMem (Ui, Capacity * sizeof (CHAR16));
+  Handles = NULL;
+  HandleCount = 0;
+  Status = gBS->LocateHandleBuffer (
+                  ByProtocol, &gEfiFirmwareVolume2ProtocolGuid,
+                  NULL, &HandleCount, &Handles);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  if (HandleCount > DPX_MAX_FV_HANDLES) {
+    FreePool (Handles);
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  for (Index = 0; Index < HandleCount; ++Index) {
+    Fv = NULL;
+    if (EFI_ERROR (gBS->HandleProtocol (
+                         Handles[Index], &gEfiFirmwareVolume2ProtocolGuid,
+                         (VOID **)&Fv)) ||
+        Fv == NULL || Fv->KeySize == 0 || Fv->KeySize > DPX_MAX_KEY_SIZE) {
+      continue;
+    }
+
+    Key = AllocateZeroPool (Fv->KeySize);
+    if (Key == NULL) {
+      Status = EFI_OUT_OF_RESOURCES;
+      break;
+    }
+
+    for (FileIndex = 0; FileIndex < DPX_MAX_FFS_RECORDS; ++FileIndex) {
+      FileType = EFI_FV_FILETYPE_ALL;
+      FileSize = 0;
+      Attr = 0;
+      Step = Fv->GetNextFile (
+                     Fv, Key, &FileType, &FfsGuid, &Attr, &FileSize);
+      if (Step == EFI_NOT_FOUND || EFI_ERROR (Step)) {
+        break;
+      }
+
+      if (!CompareGuid (Guid, &FfsGuid)) {
+        continue;
+      }
+
+      ++*Matches;
+      if (*Matches == 1) {
+        ZeroMem (FoundUi, sizeof (FoundUi));
+        Step = GetFfsUiName (Fv, &FfsGuid, FoundUi,
+                            sizeof (FoundUi) / sizeof (FoundUi[0]));
+        if (!EFI_ERROR (Step)) {
+          CopyMem (Ui, FoundUi, Capacity * sizeof (CHAR16));
+        }
+      } else {
+        Ui[0] = 0; // Ambiguous GUID mapping.
+      }
+    }
+
+    FreePool (Key);
+  }
+
+  FreePool (Handles);
+  return EFI_ERROR (Status) ? Status : (*Matches == 0 ? EFI_NOT_FOUND : EFI_SUCCESS);
+}
