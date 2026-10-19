@@ -5,7 +5,7 @@ import sys
 data = Path(sys.argv[1]).read_bytes()
 output = data.decode("utf-16le", errors="replace") if b"\0" in data else data.decode("utf-8", errors="replace")
 required = (
-    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.12.0",
+    "DPX_SMOKE_BEGIN", "DPX_SMOKE_DONE", "DpX 0.13.0",
     "Total=4096", "Used=136", "Free=3960",
     "status=verified_contiguous_layout",
     "reason=INVALID_FV_HEADER_OR_BLOCKMAP", "Used=N/A",
@@ -31,7 +31,7 @@ required = (
     "|-- Section[",
     "UI Name=PciBusDxe source=FFS_UI_SECTION",
     "|-- NestedFV depth=",
-    "|-- Top[1] DurationNs=120000000",
+    "Top[1] DurationNs=120000000",
     "[1/6] System and BIOS identification",
     "[2/6] Live FPDT + FBPT + extended DP event intervals",
     "[3/6] FV2 catalog and physical FVB space / deep sections",
@@ -42,7 +42,7 @@ required = (
     "Live read-only FVB space accounting:",
     "NestedFV FFSCount=2 PAD=1",
     "Decompress=UEFI_STANDARD decodedBytes=4100; parent physical usage UNCHANGED",
-    "Section depth=0 Type=0x17",
+    "Section[FV_IMAGE] depth=0 Type=0x17",
     "Accounting=CHILD_ONLY_DO_NOT_ADD_TO_PARENT",
     "No external firmware image was requested or loaded.",
     "GUID Resolver source=local FV2 FFS GUID",
