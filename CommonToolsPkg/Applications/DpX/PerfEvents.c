@@ -307,6 +307,7 @@ DpXAnalyzeExtendedFbpt (
     }
   }
 
+  DpXTreePrefix (0, FALSE);
   Print (L"DPX Extended FPDT: Records=%u Events=%u Pairs=%u Unclosed=%u OrphanEnds=%u Invalid=%u\n",
          (UINT32)Records, (UINT32)Events, (UINT32)Paired,
          (UINT32)OpenCount, (UINT32)Orphan, (UINT32)Invalid);
@@ -315,7 +316,8 @@ DpXAnalyzeExtendedFbpt (
   }
 
   if (Paired == 0) {
-    Print (L"  EventTop=N/A reason=NO_MATCHED_EXTENDED_RECORDS\n");
+    DpXTreePrefix (1, TRUE);
+    Print (L"EventTop=N/A reason=NO_MATCHED_EXTENDED_RECORDS\n");
   }
 
   for (J = 0; J < DPX_EVENT_TOP && Top[J].Duration != 0; ++J) {
@@ -323,17 +325,20 @@ DpXAnalyzeExtendedFbpt (
     UiMatches = 0;
     DpXLookupModuleUi (&Top[J].Start.ModuleGuid, Ui,
                        sizeof (Ui) / sizeof (Ui[0]), &UiMatches);
-    Print (L"  Top[%u] DurationNs=%lu Progress=0x%04x ModuleGuid=%g Module=%s Confidence=%s\n",
+    DpXTreePrefix (1, (J + 1 == DPX_EVENT_TOP) || (Top[J + 1].Duration == 0));
+    Print (L"Top[%u] DurationNs=%lu Progress=0x%04x ModuleGuid=%g Module=%s Confidence=%s\n",
            (UINT32)(J + 1), Top[J].Duration, Top[J].Start.ProgressId,
            &Top[J].Start.ModuleGuid,
            UiMatches == 1 && Ui[0] != 0 ? Ui : L"N/A",
            UiMatches == 1 ? L"FFS_GUID_MATCH" : (UiMatches > 1 ? L"AMBIGUOUS" : L"UNRESOLVED"));
     if (Top[J].Start.RecordType == FPDT_DUAL_GUID_STRING_EVENT_TYPE) {
-      Print (L"    TriggerGuid=%g (Event/PPI/Protocol; NOT FFS module)\n",
+      DpXTreePrefix (2, FALSE);
+      Print (L"TriggerGuid=%g (Event/PPI/Protocol; NOT FFS module)\n",
              &Top[J].Start.EventGuid);
     }
 
-    Print (L"    Token=%a LabelSource=FPDT_RECORD_STRING FunctionSymbol=%s\n",
+    DpXTreePrefix (2, TRUE);
+    Print (L"Token=%a LabelSource=FPDT_RECORD_STRING FunctionSymbol=%s\n",
            Top[J].Start.Token,
            Top[J].Start.Token[0] != 0 ? L"UNVERIFIED_TOKEN" : L"N/A");
   }

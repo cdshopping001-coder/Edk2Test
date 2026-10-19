@@ -22,7 +22,7 @@ DpXPrintHelp (
   Print (L"  DpX.efi -sysinfo        UEFI/CPU/SecureBoot information\n");
   Print (L"  DpX.efi -fv-list        Enumerate firmware-visible FV2 volumes\n");
   Print (L"  DpX.efi -fv-files -fv N List FV2 logical FFS with Sections\n");
-  Print (L"  DpX.efi -fv-detail      FVB physical FFS, sections, nested FV, compression\n");
+  Print (L"  DpX.efi -fv-detail      Tree: FVB physical FFS/sections/nested FV\n");
   Print (L"  DpX.efi -guid-map       Match all FV2 FFS GUIDs to decoded UI module names\n");
   Print (L"  DpX.efi -guid-resolve <GUID> Resolve full DP GUID to on-board FFS module\n");
   Print (L"  DpX.efi -fv-space       Inspect local FVB raw Total/Used/Free (when readable)\n");
@@ -54,35 +54,48 @@ DpXRunLocalSurvey (
   Partial = 0;
   Print (L"DpX %s | ONE-COMMAND DUT FULL REPORT | no input files\n", DPX_VERSION);
   Print (L"DataSource=THIS_BOOT; ROM/FPDT import NOT required\n");
+  Print (L"TreeView=ASCII hierarchy (|-- and `--); causal callback tree NOT inferred\n");
 
-  Print (L"\n[1/6] System and BIOS identification\n");
+  Print (L"\n");
+  DpXTreePrefix (0, FALSE);
+  Print (L"[1/6] System and BIOS identification\n");
   Status = DpXPrintSystemInfo ();
   if (!EFI_ERROR (Status)) { ++Available; }
   else { ++Partial; Print (L"  SystemInfo=N/A (%r)\n", Status); }
 
-  Print (L"\n[2/6] Live FPDT + FBPT + extended DP event intervals\n");
+  Print (L"\n");
+  DpXTreePrefix (0, FALSE);
+  Print (L"[2/6] Live FPDT + FBPT + extended DP event intervals\n");
   Status = DpXInspectLiveFpdt (TRUE);
   if (!EFI_ERROR (Status)) { ++Available; }
   else { ++Partial; Print (L"  Performance=N/A (%r), OS loader not yet reached in Shell\n", Status); }
 
-  Print (L"\n[3/6] FV2 catalog and physical FVB space / deep sections\n");
+  Print (L"\n");
+  DpXTreePrefix (0, FALSE);
+  Print (L"[3/6] FV2 catalog and physical FVB space / deep sections\n");
   Status = DpXListFirmwareVolumes (TRUE, FALSE, FALSE, 0);
   if (!EFI_ERROR (Status)) { ++Available; }
   else { ++Partial; Print (L"  LogicalFv=N/A (%r)\n", Status); }
   Status = DpXInspectLiveFvbSpaces (TRUE);
   if (EFI_ERROR (Status)) { ++Partial; Print (L"  PhysicalFv=N/A (%r)\n", Status); }
 
-  Print (L"\n[4/6] GUID to module UI name catalog (visible FV2 only)\n");
+  Print (L"\n");
+  DpXTreePrefix (0, FALSE);
+  Print (L"[4/6] GUID to module UI name catalog (visible FV2 only)\n");
   Status = DpXResolveModuleGuid (NULL);
   if (!EFI_ERROR (Status)) { ++Available; }
   else { ++Partial; Print (L"  GuidCatalog=N/A (%r)\n", Status); }
 
-  Print (L"\n[5/6] Local SPI / FVB read-only capability discovery\n");
+  Print (L"\n");
+  DpXTreePrefix (0, FALSE);
+  Print (L"[5/6] Local SPI / FVB read-only capability discovery\n");
   Status = DpXPrintRomInfo ();
   if (!EFI_ERROR (Status)) { ++Available; }
   else { ++Partial; Print (L"  RawRomBackend=N/A (%r)\n", Status); }
 
-  Print (L"\n[6/6] Integrated report status\n");
+  Print (L"\n");
+  DpXTreePrefix (0, TRUE);
+  Print (L"[6/6] Integrated report status\n");
   Print (L"DpX report complete: categories=%u/5 partial=%u\n",
          (UINT32)Available, (UINT32)Partial);
   Print (L"EventModule=FFS_GUID_MATCH only; FunctionName=FPDT_TOKEN_IF_PRESENT (unverified)\n");

@@ -57,7 +57,8 @@ EnumerateFiles (
       return Status;
     }
 
-    Print (L"  [%u] GUID=%g Type=0x%02x LogicalSize=%lu Attr=0x%08x Offset=N/A (FV2 logical view)\n",
+    DpXTreePrefix (1, FALSE);
+    Print (L"FFS[%u] GUID=%g Type=0x%02x LogicalSize=%lu Attr=0x%08x Offset=N/A (FV2 logical view)\n",
            (UINT32)Count, &Name, (UINT32)FileType,
            (UINT64)FileSize, (UINT32)Attributes);
     if (FileType != EFI_FV_FILETYPE_FFS_PAD) {
@@ -172,6 +173,7 @@ DpXListFirmwareVolumes (
     if (EFI_ERROR (Status)) {
       Print (L"FV[%u]: attributes unavailable (%r)\n", (UINT32)Index, Status);
     } else {
+      DpXTreePrefix (0, Index + 1 == Count);
       Print (L"FV[%u]: FV2 Attributes=0x%lx read=%s\n",
              (UINT32)Index, Attributes,
              (Attributes & EFI_FV2_READ_STATUS) != 0 ? L"enabled" : L"disabled");
