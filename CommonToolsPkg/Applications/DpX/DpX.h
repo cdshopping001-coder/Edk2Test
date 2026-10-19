@@ -1,5 +1,5 @@
 /** @file
-  DpX v0.13 Shell application contract.
+  DpX v0.14 Shell application contract.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 #ifndef DPX_H_
@@ -7,7 +7,7 @@
 
 #include <Uefi.h>
 
-#define DPX_VERSION         L"0.13.0"
+#define DPX_VERSION         L"0.14.0"
 #define DPX_MAX_FV_HANDLES  1024
 #define DPX_MAX_FFS_RECORDS 32768
 #define DPX_MAX_KEY_SIZE    4096
@@ -46,6 +46,16 @@ DpXLookupModuleUi (
   OUT CHAR16 *Ui,
   IN UINTN Capacity,
   OUT UINTN *Matches
+  );
+
+VOID
+DpXDeferEventAnalysis (
+  IN BOOLEAN Enable
+  );
+
+EFI_STATUS
+DpXPrintDeferredPerformanceTree (
+  VOID
   );
 
 EFI_STATUS
