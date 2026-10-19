@@ -156,13 +156,37 @@ IsErased (
 }
 
 STATIC
+CONST CHAR16 *
+DpXSectionName (
+  IN UINT8 Kind
+  )
+{
+  switch (Kind) {
+    case EFI_SECTION_PE32:                    return L"PE32";
+    case EFI_SECTION_PIC:                     return L"PIC";
+    case EFI_SECTION_TE:                      return L"TE";
+    case EFI_SECTION_DXE_DEPEX:               return L"DXE_DEPEX";
+    case EFI_SECTION_PEI_DEPEX:               return L"PEI_DEPEX";
+    case EFI_SECTION_USER_INTERFACE:          return L"UI";
+    case EFI_SECTION_VERSION:                 return L"VERSION";
+    case EFI_SECTION_RAW:                     return L"RAW";
+    case EFI_SECTION_COMPRESSION:             return L"COMPRESSION";
+    case EFI_SECTION_GUID_DEFINED:            return L"GUID_DEFINED";
+    case EFI_SECTION_FIRMWARE_VOLUME_IMAGE:   return L"FV_IMAGE";
+    case EFI_SECTION_DISPOSABLE:              return L"DISPOSABLE";
+    default:                                  return L"OTHER";
+  }
+}
+
+STATIC
 EFI_STATUS
 DpXInspectSectionsInternal (
   IN CONST UINT8 *Bytes,
   IN UINTN Size,
   IN UINTN Depth,
   IN BOOLEAN PhysicalOffset,
-  IN UINT64 OffsetBase
+  IN UINT64 OffsetBase,
+  IN UINTN TreeLevel
   );
 
 STATIC
@@ -170,7 +194,8 @@ EFI_STATUS
 WalkNestedVolume (
   IN CONST UINT8 *Bytes,
   IN UINTN Size,
-  IN UINTN Depth
+  IN UINTN Depth,
+  IN UINTN TreeLevel
   )
 {
   EFI_FIRMWARE_VOLUME_HEADER Fv;
@@ -190,7 +215,8 @@ WalkNestedVolume (
   EFI_STATUS Status;
 
   if (Depth >= DPX_DEEP_MAX_DEPTH || !FvHeaderOkay (Bytes, Size, &Fv)) {
-    Print (L"    NestedFV=N/A reason=DEPTH_OR_INVALID_FV_HEADER\n");
+    DpXTreePrefix (TreeLevel, TRUE);
+    Print (L"NestedFV=N/A reason=DEPTH_OR_INVALID_FV_HEADER\n");
     return EFI_UNSUPPORTED;
   }
 
@@ -223,7 +249,8 @@ WalkNestedVolume (
   Pad = 0;
   Deleted = 0;
   Status = EFI_SUCCESS;
-  Print (L"    NestedFV depth=%u NameGuid=", (UINT32)Depth);
+  DpXTreePrefix (TreeLevel, FALSE);
+  Print (L"NestedFV depth=%u NameGuid=", (UINT32)Depth);
   if (Fv.ExtHeaderOffset != 0) {
     Print (L"%g", &Ext.FvName);
   } else {
@@ -312,7 +339,8 @@ WalkNestedVolume (
       ++Deleted;
     }
 
-    Print (L"      NestedFFS[%u] GUID=%g Type=0x%02x Offset=0x%lx PhysicalSize=%lu State=%s\n",
+    DpXTreePrefix (TreeLevel + 1, FALSE);
+    Print (L"NestedFFS[%u] GUID=%g Type=0x%02x Offset=0x%lx PhysicalSize=%lu State=%s\n",
            (UINT32)(Count - 1), &Ffs.Name, Ffs.Type,
            Offset, FileBytes,
            State == EFI_FILE_DELETED ? L"DELETED_UNRECLAIMED" : L"allocated");
@@ -323,7 +351,7 @@ WalkNestedVolume (
       DpXInspectSectionsInternal (
         Bytes + (UINTN)Offset + HdrBytes,
         (UINTN)(FileBytes - HdrBytes),
-        Depth + 1, FALSE, 0
+        Depth + 1, FALSE, 0, TreeLevel + 2
         );
     }
 
@@ -335,15 +363,18 @@ WalkNestedVolume (
   }
 
   if (EFI_ERROR (Status)) {
-    Print (L"    NestedFV FFSCount=N/A reason=INVALID_OR_UNKNOWN_LAYOUT (%r)\n",
+    DpXTreePrefix (TreeLevel + 1, TRUE);
+    Print (L"NestedFV FFSCount=N/A reason=INVALID_OR_UNKNOWN_LAYOUT (%r)\n",
            Status);
   } else {
-    Print (L"    NestedFV FFSCount=%u PAD=%u DeletedUnreclaimed=%u Used=%lu Free=%lu\n",
+    DpXTreePrefix (TreeLevel + 1, TRUE);
+    Print (L"NestedFV FFSCount=%u PAD=%u DeletedUnreclaimed=%u Used=%lu Free=%lu\n",
            (UINT32)Count, (UINT32)Pad, (UINT32)Deleted,
            Offset, Fv.FvLength - Offset);
   }
 
-  Print (L"    Accounting=CHILD_ONLY_DO_NOT_ADD_TO_PARENT\n");
+  DpXTreePrefix (TreeLevel + 1, TRUE);
+  Print (L"Accounting=CHILD_ONLY_DO_NOT_ADD_TO_PARENT\n");
   return Status;
 }
 
@@ -354,7 +385,8 @@ DpXInspectSectionsInternal (
   IN UINTN Size,
   IN UINTN Depth,
   IN BOOLEAN PhysicalOffset,
-  IN UINT64 OffsetBase
+  IN UINT64 OffsetBase,
+  IN UINTN TreeLevel
   )
 {
   EFI_STATUS Status;
@@ -381,7 +413,8 @@ DpXInspectSectionsInternal (
   }
 
   if (Size > DPX_DEEP_OUTPUT_LIMIT) {
-    Print (L"    SectionDetail=N/A reason=SECTION_BYTES_OVER_LIMIT\n");
+    DpXTreePrefix (TreeLevel, TRUE);
+    Print (L"SectionDetail=N/A reason=SECTION_BYTES_OVER_LIMIT\n");
     return EFI_UNSUPPORTED;
   }
 
@@ -418,8 +451,9 @@ DpXInspectSectionsInternal (
     }
 
     PayloadStart = At + HdrBytes;
-    Print (L"    Section depth=%u Type=0x%02x RawBytes=%u Offset=",
-           (UINT32)Depth, Kind, (UINT32)SectionSize);
+    DpXTreePrefix (TreeLevel, At + ((SectionSize + 3) & ~(UINTN)3) >= Size);
+    Print (L"Section[%s] depth=%u Type=0x%02x RawBytes=%u Offset=",
+           DpXSectionName (Kind), (UINT32)Depth, Kind, (UINT32)SectionSize);
     if (PhysicalOffset) {
       Print (L"0x%lx (FV-relative)\n", OffsetBase + At);
     } else {
@@ -436,7 +470,8 @@ DpXInspectSectionsInternal (
       PayloadStart += sizeof (Expected);
       CompressedBytes = (UINT32)(SectionSize - (PayloadStart - At) - 1);
       Kind = Bytes[PayloadStart++];
-      Print (L"      Compression Type=%u Stored=%u DeclaredDecoded=%u\n",
+      DpXTreePrefix (TreeLevel + 1, FALSE);
+      Print (L"Compression Type=%u Stored=%u DeclaredDecoded=%u\n",
              Kind, CompressedBytes, Expected);
       if (Expected > DPX_DEEP_OUTPUT_LIMIT ||
           (CompressedBytes == 0 && Expected != 0) ||
@@ -445,10 +480,11 @@ DpXInspectSectionsInternal (
         Print (L"      Decompress=N/A reason=SIZE_OR_EXPANSION_LIMIT\n");
       } else if (Kind == EFI_NOT_COMPRESSED) {
         if (CompressedBytes == Expected) {
-          Print (L"      Decompress=NONE decodedBytes=%u\n", Expected);
+          DpXTreePrefix (TreeLevel + 1, FALSE);
+          Print (L"Decompress=NONE decodedBytes=%u\n", Expected);
           DpXInspectSectionsInternal (
             Bytes + PayloadStart, Expected,
-            Depth + 1, FALSE, 0
+            Depth + 1, FALSE, 0, TreeLevel + 2
             );
         } else {
           Print (L"      Decompress=N/A reason=RAW_LENGTH_MISMATCH\n");
@@ -478,10 +514,11 @@ DpXInspectSectionsInternal (
             if (RETURN_ERROR (LibStatus)) {
               Print (L"      Decompress=N/A reason=DECODE_FAILED\n");
             } else {
-              Print (L"      Decompress=UEFI_STANDARD decodedBytes=%u; parent physical usage UNCHANGED\n",
+              DpXTreePrefix (TreeLevel + 1, FALSE);
+              Print (L"Decompress=UEFI_STANDARD decodedBytes=%u; parent physical usage UNCHANGED\n",
                      OutputBytes);
               DpXInspectSectionsInternal (
-                Decoded, OutputBytes, Depth + 1, FALSE, 0
+                Decoded, OutputBytes, Depth + 1, FALSE, 0, TreeLevel + 2
                 );
             }
           }
@@ -498,10 +535,12 @@ DpXInspectSectionsInternal (
         Print (L"      Decompress=UNSUPPORTED_CODEC; not counted as a new FFS\n");
       }
     } else if (Kind == EFI_SECTION_FIRMWARE_VOLUME_IMAGE) {
-      Print (L"      NestedFV candidate size=%u\n",
+      DpXTreePrefix (TreeLevel + 1, FALSE);
+      Print (L"NestedFV candidate size=%u\n",
              (UINT32)(SectionSize - HdrBytes));
       WalkNestedVolume (
-        Bytes + PayloadStart, SectionSize - HdrBytes, Depth + 1
+        Bytes + PayloadStart, SectionSize - HdrBytes, Depth + 1,
+        TreeLevel + 2
         );
     } else if (Kind == EFI_SECTION_GUID_DEFINED) {
       if (SectionSize < HdrBytes + sizeof (Guided) + sizeof (UINT16) * 2) {
@@ -515,7 +554,8 @@ DpXInspectSectionsInternal (
       CopyMem (&Flags,
                Bytes + PayloadStart + sizeof (Guided) + sizeof (DataOffset),
                sizeof (Flags));
-      Print (L"      Guided Guid=%g Attr=0x%04x\n", &Guided, Flags);
+      DpXTreePrefix (TreeLevel + 1, FALSE);
+      Print (L"Guided Guid=%g Attr=0x%04x\n", &Guided, Flags);
       if (DataOffset < HdrBytes + sizeof (Guided) + 4 ||
           DataOffset > SectionSize)
       {
@@ -529,13 +569,13 @@ DpXInspectSectionsInternal (
         DpXInspectSectionsInternal (
           Bytes + At + DataOffset,
           SectionSize - DataOffset,
-          Depth + 1, FALSE, 0
+          Depth + 1, FALSE, 0, TreeLevel + 2
           );
       }
     } else if (Kind == EFI_SECTION_DISPOSABLE) {
       DpXInspectSectionsInternal (
         Bytes + PayloadStart, SectionSize - HdrBytes,
-        Depth + 1, FALSE, 0
+        Depth + 1, FALSE, 0, TreeLevel + 1
         );
     }
 
@@ -558,7 +598,8 @@ DpXInspectSectionsInternal (
   }
 
   if (EFI_ERROR (Status)) {
-    Print (L"    SectionDetail=N/A reason=MALFORMED_SECTION_LAYOUT (%r)\n", Status);
+    DpXTreePrefix (TreeLevel, TRUE);
+    Print (L"SectionDetail=N/A reason=MALFORMED_SECTION_LAYOUT (%r)\n", Status);
   }
 
   return Status;
@@ -578,6 +619,6 @@ DpXInspectFfsSections (
   }
 
   return DpXInspectSectionsInternal (
-           Bytes, Size, 0, OffsetValid, FvRelativeOffset
+           Bytes, Size, 0, OffsetValid, FvRelativeOffset, 2
            );
 }
