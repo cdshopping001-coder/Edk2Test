@@ -25,7 +25,7 @@ required = (
     "Live FPDT discovery source=firmware-published ACPI XSDT/RSDT",
     "Live FPDT status=",
     "FIVE-STAGE LIVE DUT REPORT",
-    "[1/5] Collect DP raw records"
+    "[1/5] Collect DP raw records",
     "|-- FFS[",
     "|-- Section[",
     "UI Name=PciBusDxe source=FFS_UI_SECTION",
